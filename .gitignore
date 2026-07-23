@@ -216,3 +216,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Toolkit-generated output
+graphify-out/
+QR-generator/qrs/
