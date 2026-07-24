@@ -1,0 +1,13 @@
+{
+  "id": "youtube-downloader",
+  "slug": "youtube-downloader",
+  "name": "YouTube Downloader",
+  "description": "Save permitted media as MP4, MP3, or MOV.",
+  "sortOrder": 1,
+  "category": "Media",
+  "tags": ["MP4", "MP3", "MOV"],
+  "icon": "video",
+  "accent": "coral",
+  "executionType": "server-job",
+  "availability": "available"
+}

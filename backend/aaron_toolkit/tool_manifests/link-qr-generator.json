@@ -1,0 +1,13 @@
+{
+  "id": "link-qr-generator",
+  "slug": "link-qr-generator",
+  "name": "Link QR Generator",
+  "description": "Turn a complete web link into a custom PNG.",
+  "sortOrder": 2,
+  "category": "Generate",
+  "tags": ["PNG", "Colors"],
+  "icon": "qr-code",
+  "accent": "mint",
+  "executionType": "server-sync",
+  "availability": "available"
+}

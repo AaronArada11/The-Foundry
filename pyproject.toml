@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aaron-toolkit"
+version = "1.0.0"
+description = "Extensible public web toolkit with FastAPI and React"
+requires-python = ">=3.11"
+dependencies = [
+  "boto3>=1.35,<2",
+  "fastapi>=0.116,<1",
+  "httpx>=0.28,<1",
+  "pillow>=11,<13",
+  "pydantic-settings>=2.10,<3",
+  "qrcode[pil]>=8,<9",
+  "redis>=6,<7",
+  "uvicorn[standard]>=0.35,<1",
+  "yt-dlp>=2025.6.30",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.4,<9",
+  "pytest-asyncio>=1,<2",
+  "pytest-cov>=6,<8",
+  "ruff>=0.12,<1",
+]
+
+[tool.setuptools]
+package-dir = {"" = "backend"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+
+[tool.setuptools.package-data]
+aaron_toolkit = ["tool_manifests/*.json"]
+
+[tool.pytest.ini_options]
+pythonpath = ["backend"]
+testpaths = ["backend/tests", "QR-generator"]
+markers = [
+  "real_media: performs a live yt-dlp/FFmpeg smoke test",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

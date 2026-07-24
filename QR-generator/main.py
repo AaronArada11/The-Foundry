@@ -5,23 +5,25 @@ import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
-import qrcode
+BACKEND_DIRECTORY = Path(__file__).resolve().parents[1] / "backend"
+if str(BACKEND_DIRECTORY) not in sys.path:
+    sys.path.insert(0, str(BACKEND_DIRECTORY))
 
+from aaron_toolkit.qr_service import (  # noqa: E402
+    QRValidationError,
+    generate_qr_png,
+    validate_web_link,
+)
 
 DEFAULT_OUTPUT_DIRECTORY = Path("qrs")
 
 
 def valid_link(value: str) -> str:
     """Return a normalized HTTP(S) link or raise an argparse error."""
-    link = value.strip()
-    parsed = urlparse(link)
-
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise argparse.ArgumentTypeError(
-            "enter a complete link beginning with http:// or https://"
-        )
-
-    return link
+    try:
+        return validate_web_link(value)
+    except QRValidationError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
 
 
 def default_output_path(link: str) -> Path:
@@ -46,29 +48,20 @@ def generate_qr(
     background_color: str = "#ffffff",
 ) -> Path:
     """Generate a QR code for a link and return the saved file path."""
-    qr = qrcode.QRCode(
-        version=None,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=12,
-        border=4,
+    result = generate_qr_png(
+        link,
+        foreground=fill_color,
+        background=background_color,
+        filename=output_path.name,
     )
-    qr.add_data(link)
-    qr.make(fit=True)
-
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    image = qr.make_image(
-        fill_color=fill_color,
-        back_color=background_color,
-    )
-    image.save(output_path)
+    output_path.write_bytes(result.content)
 
     return output_path
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Generate a PNG QR code for a web link."
-    )
+    parser = argparse.ArgumentParser(description="Generate a PNG QR code for a web link.")
     parser.add_argument(
         "link",
         nargs="?",
