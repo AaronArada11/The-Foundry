@@ -1,0 +1,13 @@
+{
+  "id": "pdf-to-word",
+  "slug": "pdf-to-word",
+  "name": "PDF to Word",
+  "description": "Turn a text-based PDF into an editable Word document.",
+  "sortOrder": 4,
+  "category": "Convert",
+  "tags": ["PDF", "DOCX"],
+  "icon": "file-doc",
+  "accent": "forest",
+  "executionType": "server-job",
+  "availability": "available"
+}

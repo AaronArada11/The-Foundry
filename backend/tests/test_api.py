@@ -14,6 +14,7 @@ def test_health_and_tool_catalog():
         "youtube-downloader",
         "link-qr-generator",
         "image-format-converter",
+        "pdf-to-word",
     ]
 
 
@@ -66,3 +67,25 @@ def test_image_endpoint_returns_downloadable_conversion():
     assert response.headers["content-type"] == "image/jpeg"
     assert response.headers["x-artifact-filename"] == "sample.jpg"
     assert response.content.startswith(b"\xff\xd8\xff")
+
+
+def test_pdf_endpoint_queues_valid_document():
+    source = io.BytesIO()
+    document = __import__("pymupdf").open()
+    page = document.new_page()
+    page.insert_text((72, 72), "Editable document")
+    document.save(source)
+    document.close()
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/pdf-to-word-jobs",
+            files={"file": ("document.pdf", source.getvalue(), "application/pdf")},
+            data={"turnstileToken": "dev-bypass"},
+        )
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["kind"] == "pdf-to-word"
+    assert payload["status"] == "queued"
+    assert payload["eventsUrl"].endswith("/events")

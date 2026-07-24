@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     max_image_bytes: int = 20 * 1024 * 1024
     max_image_pixels: int = 40_000_000
     image_conversions_per_minute: int = 10
+    max_pdf_bytes: int = 25 * 1024 * 1024
+    max_pdf_pages: int = 100
+    pdf_timeout_seconds: int = 180
+    pdf_jobs_per_hour: int = 3
+    pdf_max_concurrency: int = 1
+    pdf_memory_limit_mb: int = 1024
     worker_concurrency: int = 2
 
     @property

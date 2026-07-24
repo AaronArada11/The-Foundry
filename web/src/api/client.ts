@@ -54,6 +54,48 @@ export function downloadFilename(response: Response, fallback: string): string {
   );
 }
 
+export function uploadFormWithProgress<T>(
+  path: string,
+  body: FormData,
+  onProgress: (progress: number) => void,
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", path);
+    request.responseType = "json";
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    });
+    request.addEventListener("load", () => {
+      const payload = request.response as
+        | T
+        | { detail?: string | { message?: string } }
+        | null;
+      if (request.status >= 200 && request.status < 300 && payload) {
+        resolve(payload as T);
+        return;
+      }
+      const detail =
+        payload && typeof payload === "object" && "detail" in payload
+          ? payload.detail
+          : null;
+      reject(
+        new Error(
+          typeof detail === "string"
+            ? detail
+            : detail?.message || "The upload could not be completed.",
+        ),
+      );
+    });
+    request.addEventListener("error", () => {
+      reject(new Error("The upload was interrupted. Check your connection and try again."));
+    });
+    request.send(body);
+  });
+}
+
 export function fetchTools(signal?: AbortSignal): Promise<ToolManifest[]> {
   return apiRequest<ToolManifest[]>("/api/tools", { signal });
 }

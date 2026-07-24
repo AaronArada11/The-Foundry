@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import tempfile
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -30,12 +31,14 @@ from .download_service import (
     validate_youtube_url,
 )
 from .image_service import ImageFormat, ImageValidationError, convert_image
-from .jobs import TERMINAL_STATUSES, ActiveJobError, DownloadJob
+from .jobs import TERMINAL_STATUSES, ActiveJobError, DownloadJob, JobKind, ToolJob
 from .manifests import load_tool_manifests
+from .pdf_service import PDFValidationError, validate_pdf
 from .qr_service import QRValidationError, generate_qr_png
 from .rate_limit import RateLimitExceeded
 from .services import Services, build_services
 from .storage import LocalArtifactStore
+from .uploads import UploadTooLargeError, save_upload
 from .verification import VerificationError, verify_turnstile
 
 settings = get_settings()
@@ -119,6 +122,50 @@ class DownloadRequest(BaseModel):
     format: Literal["mp4", "mp3", "mov"]
     turnstile_token: str | None = Field(default=None, alias="turnstileToken")
     permission_confirmed: bool = Field(alias="permissionConfirmed")
+
+
+async def get_tool_job(
+    request: Request,
+    job_id: str,
+    kind: JobKind,
+) -> ToolJob:
+    job = await services(request).jobs.get(job_id)
+    if not job or job.kind != kind:
+        raise HTTPException(status_code=404, detail="Job not found or expired.")
+    return job
+
+
+async def tool_job_events(
+    request: Request,
+    job_id: str,
+    kind: JobKind,
+) -> StreamingResponse:
+    store = services(request).jobs
+    await get_tool_job(request, job_id, kind)
+
+    async def stream() -> AsyncIterator[str]:
+        last_version = ""
+        while not await request.is_disconnected():
+            job = await store.get(job_id)
+            if not job or job.kind != kind:
+                yield 'event: expired\ndata: {"status":"expired"}\n\n'
+                return
+            version = f"{job.updated_at}:{job.status}:{job.progress}"
+            if version != last_version:
+                yield f"data: {json.dumps(job.public_dict())}\n\n"
+                last_version = version
+            if job.status in TERMINAL_STATUSES:
+                return
+            await asyncio.sleep(0.5)
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @app.get("/api/health")
@@ -262,49 +309,116 @@ async def create_download_job(
 
 @app.get("/api/download-jobs/{job_id}")
 async def get_download_job(job_id: str, request: Request) -> dict[str, object]:
-    job = await services(request).jobs.get(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found or expired.")
+    job = await get_tool_job(request, job_id, "youtube-download")
     return job.public_dict()
 
 
 @app.get("/api/download-jobs/{job_id}/events")
 async def download_job_events(job_id: str, request: Request) -> StreamingResponse:
-    store = services(request).jobs
-    if not await store.get(job_id):
-        raise HTTPException(status_code=404, detail="Job not found or expired.")
-
-    async def stream() -> AsyncIterator[str]:
-        last_version = ""
-        while not await request.is_disconnected():
-            job = await store.get(job_id)
-            if not job:
-                yield 'event: expired\ndata: {"status":"expired"}\n\n'
-                return
-            version = f"{job.updated_at}:{job.status}:{job.progress}"
-            if version != last_version:
-                yield f"data: {json.dumps(job.public_dict())}\n\n"
-                last_version = version
-            if job.status in TERMINAL_STATUSES:
-                return
-            await asyncio.sleep(0.5)
-        return
-
-    return StreamingResponse(
-        stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    return await tool_job_events(request, job_id, "youtube-download")
 
 
 @app.delete("/api/download-jobs/{job_id}")
 async def cancel_download_job(job_id: str, request: Request) -> dict[str, object]:
+    await get_tool_job(request, job_id, "youtube-download")
     job = await services(request).jobs.request_cancel(job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found or expired.")
+    assert job
+    return job.public_dict()
+
+
+@app.post("/api/pdf-to-word-jobs", status_code=status.HTTP_202_ACCEPTED)
+async def create_pdf_to_word_job(
+    request: Request,
+    file: Annotated[UploadFile, File()],
+    turnstile_token: Annotated[str | None, Form(alias="turnstileToken")] = None,
+) -> dict[str, object]:
+    current = services(request)
+    ip = client_ip(request)
+    try:
+        await verify_turnstile(
+            turnstile_token,
+            remote_ip=ip,
+            secret=current.settings.turnstile_secret_key,
+            production=current.settings.is_production,
+        )
+    except VerificationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    await current.rate_limiter.check(
+        f"pdf:{ip}",
+        limit=current.settings.pdf_jobs_per_hour,
+        window_seconds=3600,
+    )
+
+    stored = None
+    try:
+        with tempfile.TemporaryDirectory(prefix="aaron-toolkit-upload-") as temp:
+            source = Path(temp) / "source.pdf"
+            await save_upload(
+                file,
+                source,
+                max_bytes=current.settings.max_pdf_bytes,
+            )
+            validate_pdf(
+                source,
+                max_bytes=current.settings.max_pdf_bytes,
+                max_pages=current.settings.max_pdf_pages,
+            )
+            stored = await current.artifacts.put_input(
+                source,
+                filename=file.filename or "document.pdf",
+            )
+    except UploadTooLargeError as error:
+        size_mb = current.settings.max_pdf_bytes // (1024 * 1024)
+        raise HTTPException(
+            status_code=413,
+            detail=f"PDF files must be {size_mb} MB or smaller.",
+        ) from error
+    except PDFValidationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    finally:
+        await file.close()
+
+    assert stored
+    job = ToolJob.create_pdf(
+        owner_hash=owner_hash(ip, current.settings.signing_secret),
+        input_key=stored.key,
+        source_filename=stored.filename,
+        ttl_seconds=current.settings.job_ttl_seconds,
+    )
+    try:
+        await current.jobs.create(job)
+    except ActiveJobError as error:
+        await current.artifacts.delete_input(stored.key)
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    await current.jobs.enqueue(job.id)
+    return {
+        **job.public_dict(),
+        "statusUrl": f"/api/pdf-to-word-jobs/{job.id}",
+        "eventsUrl": f"/api/pdf-to-word-jobs/{job.id}/events",
+    }
+
+
+@app.get("/api/pdf-to-word-jobs/{job_id}")
+async def get_pdf_to_word_job(job_id: str, request: Request) -> dict[str, object]:
+    job = await get_tool_job(request, job_id, "pdf-to-word")
+    return job.public_dict()
+
+
+@app.get("/api/pdf-to-word-jobs/{job_id}/events")
+async def pdf_to_word_job_events(job_id: str, request: Request) -> StreamingResponse:
+    return await tool_job_events(request, job_id, "pdf-to-word")
+
+
+@app.delete("/api/pdf-to-word-jobs/{job_id}")
+async def cancel_pdf_to_word_job(job_id: str, request: Request) -> dict[str, object]:
+    current = services(request)
+    existing = await get_tool_job(request, job_id, "pdf-to-word")
+    job = await current.jobs.request_cancel(job_id)
+    assert job
+    if job.status == "cancelled" and existing.input_key:
+        await current.artifacts.delete_input(existing.input_key)
+        job = await current.jobs.update(job_id, input_key=None)
     return job.public_dict()
 
 

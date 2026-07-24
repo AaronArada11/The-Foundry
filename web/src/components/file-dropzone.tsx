@@ -5,12 +5,7 @@ import {
   type DragEvent,
 } from "react";
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024 * 1024) {
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+import { formatBytes } from "../utils/files";
 
 export function FileDropzone({
   label,

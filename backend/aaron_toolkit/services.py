@@ -9,6 +9,7 @@ from .config import Settings
 from .download_service import DownloadProcessor
 from .job_dispatcher import ToolJobDispatcher
 from .jobs import JobStore, MemoryJobStore, RedisJobStore
+from .pdf_service import PDFProcessor
 from .rate_limit import MemoryRateLimiter, RateLimiter, RedisRateLimiter
 from .storage import ArtifactStore, LocalArtifactStore, S3ArtifactStore
 
@@ -78,9 +79,17 @@ async def build_services(settings: Settings, *, start_local_worker: bool) -> Ser
         artifacts=artifacts,
         settings=settings,
     )
+    pdf_processor = PDFProcessor(
+        store=jobs,
+        artifacts=artifacts,
+        settings=settings,
+    )
     processor = ToolJobDispatcher(
         jobs,
-        {"youtube-download": download_processor},
+        {
+            "youtube-download": download_processor,
+            "pdf-to-word": pdf_processor,
+        },
     )
     services = Services(
         settings=settings,

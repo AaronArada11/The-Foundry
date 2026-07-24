@@ -8,6 +8,7 @@ def test_tool_manifests_are_unique_ordered_and_available():
         "youtube-downloader",
         "link-qr-generator",
         "image-format-converter",
+        "pdf-to-word",
     ]
     assert len({manifest.slug for manifest in manifests}) == len(manifests)
     assert all(manifest.availability == "available" for manifest in manifests)

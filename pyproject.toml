@@ -13,6 +13,7 @@ dependencies = [
   "httpx>=0.28,<1",
   "pillow>=11,<13",
   "pillow-heif>=1.1,<2",
+  "pdf2docx>=0.5.8,<1",
   "pydantic-settings>=2.10,<3",
   "python-multipart>=0.0.20,<1",
   "qrcode[pil]>=8,<9",
@@ -44,6 +45,7 @@ pythonpath = ["backend"]
 testpaths = ["backend/tests", "QR-generator"]
 markers = [
   "real_media: performs a live yt-dlp/FFmpeg smoke test",
+  "real_pdf: performs a real local PDF-to-DOCX conversion smoke test",
 ]
 
 [tool.ruff]
