@@ -9,6 +9,11 @@ test("catalog loads, filters, and routes to a tool", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Open Image Format Converter" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open PDF to Word" })).toBeVisible();
 
+  const columnCount = await page
+    .locator(".tool-grid")
+    .evaluate((element) => getComputedStyle(element).gridTemplateColumns.split(" ").length);
+  expect(columnCount).toBe((page.viewportSize()?.width ?? 0) < 768 ? 1 : 2);
+
   await page.getByRole("searchbox", { name: "Search tools" }).fill("QR");
   await expect(page.getByRole("link", { name: "Open Link QR Generator" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open YouTube Downloader" })).toHaveCount(0);
