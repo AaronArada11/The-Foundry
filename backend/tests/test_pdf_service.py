@@ -45,6 +45,16 @@ def test_rejects_encrypted_and_oversized_pdf(tmp_path: Path):
     with pytest.raises(PDFValidationError, match="MB or smaller"):
         validate_pdf(plain, max_bytes=5, max_pages=10)
 
+    two_pages = tmp_path / "two-pages.pdf"
+    document = pymupdf.open()
+    for _ in range(2):
+        page = document.new_page()
+        page.insert_text((72, 72), "Editable")
+    document.save(two_pages)
+    document.close()
+    with pytest.raises(PDFValidationError, match="at most 1 pages"):
+        validate_pdf(two_pages, max_bytes=1024 * 1024, max_pages=1)
+
 
 class StubPDFProcessor(PDFProcessor):
     async def _run_conversion(self, job_id: str, source: Path, output: Path) -> None:
@@ -89,3 +99,44 @@ async def test_processor_publishes_docx_and_deletes_private_input(tmp_path: Path
     assert ready.input_key is None
     with pytest.raises(FileNotFoundError):
         await artifacts.materialize_input(stored.key, tmp_path / "missing.pdf")
+
+
+class TimeoutPDFProcessor(PDFProcessor):
+    async def _run_conversion(self, job_id: str, source: Path, output: Path) -> None:
+        del job_id, source, output
+        raise TimeoutError
+
+
+@pytest.mark.asyncio
+async def test_processor_reports_timeout_and_cleans_input(tmp_path: Path):
+    source = tmp_path / "source.pdf"
+    create_pdf(source)
+    artifacts = LocalArtifactStore(
+        tmp_path / "artifacts",
+        public_base_url="http://localhost:8000",
+        signing_secret="secret",
+        ttl_seconds=900,
+    )
+    stored = await artifacts.put_input(source, filename="slow.pdf")
+    jobs = MemoryJobStore()
+    job = await jobs.create(
+        ToolJob.create_pdf(
+            owner_hash="owner",
+            input_key=stored.key,
+            source_filename=stored.filename,
+            ttl_seconds=3600,
+        )
+    )
+    processor = TimeoutPDFProcessor(
+        store=jobs,
+        artifacts=artifacts,
+        settings=Settings(),
+    )
+
+    await processor.process(job.id)
+
+    failed = await jobs.get(job.id)
+    assert failed
+    assert failed.status == "failed"
+    assert "execution time limit" in (failed.error or "")
+    assert failed.input_key is None

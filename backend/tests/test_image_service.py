@@ -3,6 +3,7 @@ import io
 import pytest
 from aaron_toolkit.image_service import ImageValidationError, convert_image
 from PIL import Image
+from pillow_heif import from_pillow
 
 
 def image_bytes(
@@ -67,6 +68,24 @@ def test_rejects_oversized_and_malformed_images():
             max_bytes=1024,
             max_pixels=100,
         )
+
+
+def test_accepts_heic_input_and_removes_metadata():
+    source = Image.new("RGB", (8, 6), "green")
+    heic = io.BytesIO()
+    from_pillow(source).save(heic, format="HEIF")
+
+    result = convert_image(
+        heic.getvalue(),
+        source_filename="camera.heic",
+        target="jpg",
+        max_bytes=1024 * 1024,
+        max_pixels=1000,
+    )
+
+    with Image.open(io.BytesIO(result.content)) as converted:
+        assert converted.format == "JPEG"
+        assert not converted.getexif()
 
     with pytest.raises(ImageValidationError, match="not a supported image"):
         convert_image(

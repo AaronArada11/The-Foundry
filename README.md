@@ -4,10 +4,13 @@ Aaron Toolkit is an extensible public web app for small utilities. The catalog i
 registry-driven: adding a tool manifest and its feature module automatically adds
 it to search, navigation, and routing without changing the homepage.
 
-The first two tools are:
+The initial tools are:
 
 - Link QR Generator — generate a customized PNG QR code from an HTTP(S) link.
 - YouTube Downloader — process permitted single-video URLs as MP4, MP3, or MOV.
+- Image Format Converter — convert JPG, PNG, WebP, GIF, BMP, TIFF, HEIC, or
+  AVIF images to JPG, PNG, or WebP.
+- PDF to Word — turn text-based PDFs into editable DOCX files.
 
 ## Local development
 
@@ -49,6 +52,12 @@ The optional real media smoke test is disabled by default:
 
 ```bash
 RUN_REAL_MEDIA_TESTS=1 pytest -m real_media
+```
+
+Run the local PDF conversion smoke test with:
+
+```bash
+RUN_REAL_PDF_TEST=1 pytest -m real_pdf
 ```
 
 ## Production

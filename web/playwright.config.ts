@@ -1,18 +1,21 @@
 import { defineConfig } from "@playwright/test";
 
+const port = process.env.PLAYWRIGHT_PORT || "8000";
+const baseURL = `http://127.0.0.1:${port}`;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:8000",
+    baseURL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   webServer: {
     command:
-      "npm run build && ../.venv/bin/uvicorn aaron_toolkit.app:app --host 127.0.0.1 --port 8000",
-    url: "http://127.0.0.1:8000/api/health",
+      `npm run build && IMAGE_CONVERSIONS_PER_MINUTE=100 ../.venv/bin/uvicorn aaron_toolkit.app:app --host 127.0.0.1 --port ${port}`,
+    url: `${baseURL}/api/health`,
     timeout: 120_000,
     reuseExistingServer: true,
   },
