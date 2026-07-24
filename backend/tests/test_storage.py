@@ -32,3 +32,27 @@ async def test_local_artifact_uses_signed_expiring_url(tmp_path: Path):
         )
         is None
     )
+
+
+@pytest.mark.asyncio
+async def test_local_private_input_can_be_materialized_and_deleted(tmp_path: Path):
+    source = tmp_path / "document.pdf"
+    source.write_bytes(b"%PDF-private")
+    store = LocalArtifactStore(
+        tmp_path / "artifacts",
+        public_base_url="http://localhost:8000",
+        signing_secret="test-secret",
+        ttl_seconds=900,
+        input_ttl_seconds=3600,
+    )
+
+    stored = await store.put_input(source, filename="../document.pdf")
+    materialized = tmp_path / "materialized.pdf"
+    await store.materialize_input(stored.key, materialized)
+
+    assert stored.filename == "document.pdf"
+    assert materialized.read_bytes() == b"%PDF-private"
+
+    await store.delete_input(stored.key)
+    with pytest.raises(FileNotFoundError):
+        await store.materialize_input(stored.key, materialized)

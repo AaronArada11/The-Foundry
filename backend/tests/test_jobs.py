@@ -3,6 +3,7 @@ from aaron_toolkit.jobs import (
     ActiveJobError,
     DownloadJob,
     MemoryJobStore,
+    ToolJob,
 )
 
 
@@ -39,3 +40,32 @@ async def test_queue_and_cancelled_queued_job():
     assert cancelled
     assert cancelled.status == "cancelled"
     assert cancelled.cancel_requested
+
+
+@pytest.mark.asyncio
+async def test_owner_can_have_one_active_job_of_each_kind():
+    store = MemoryJobStore()
+    await store.create(make_job())
+    pdf = ToolJob.create_pdf(
+        owner_hash="owner",
+        input_key="input-key",
+        source_filename="document.pdf",
+        ttl_seconds=3600,
+    )
+
+    created = await store.create(pdf)
+
+    assert created.kind == "pdf-to-word"
+
+
+def test_legacy_job_payload_is_read_as_youtube_job():
+    job = make_job()
+    payload = job.storage_dict()
+    for key in ("kind", "version", "input_key", "source_filename"):
+        payload.pop(key)
+
+    restored = ToolJob.from_payload(payload)
+
+    assert restored.kind == "youtube-download"
+    assert restored.version == 1
+    assert "kind" not in restored.public_dict()

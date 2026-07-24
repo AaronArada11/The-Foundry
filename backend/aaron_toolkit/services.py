@@ -7,6 +7,7 @@ from redis.asyncio import Redis
 
 from .config import Settings
 from .download_service import DownloadProcessor
+from .job_dispatcher import ToolJobDispatcher
 from .jobs import JobStore, MemoryJobStore, RedisJobStore
 from .rate_limit import MemoryRateLimiter, RateLimiter, RedisRateLimiter
 from .storage import ArtifactStore, LocalArtifactStore, S3ArtifactStore
@@ -18,7 +19,7 @@ class Services:
     jobs: JobStore
     artifacts: ArtifactStore
     rate_limiter: RateLimiter
-    processor: DownloadProcessor
+    processor: ToolJobDispatcher
     redis: Redis | None
     local_worker_tasks: list[asyncio.Task[None]]
 
@@ -61,6 +62,7 @@ async def build_services(settings: Settings, *, start_local_worker: bool) -> Ser
             access_key_id=settings.s3_access_key_id or "",
             secret_access_key=settings.s3_secret_access_key or "",
             ttl_seconds=settings.artifact_ttl_seconds,
+            input_ttl_seconds=settings.job_ttl_seconds,
         )
     else:
         artifacts = LocalArtifactStore(
@@ -68,9 +70,18 @@ async def build_services(settings: Settings, *, start_local_worker: bool) -> Ser
             public_base_url=settings.public_base_url,
             signing_secret=settings.signing_secret,
             ttl_seconds=settings.artifact_ttl_seconds,
+            input_ttl_seconds=settings.job_ttl_seconds,
         )
 
-    processor = DownloadProcessor(store=jobs, artifacts=artifacts, settings=settings)
+    download_processor = DownloadProcessor(
+        store=jobs,
+        artifacts=artifacts,
+        settings=settings,
+    )
+    processor = ToolJobDispatcher(
+        jobs,
+        {"youtube-download": download_processor},
+    )
     services = Services(
         settings=settings,
         jobs=jobs,

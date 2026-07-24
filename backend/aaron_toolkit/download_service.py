@@ -85,7 +85,7 @@ class DownloadProcessor:
 
     async def process(self, job_id: str) -> None:
         job = await self.store.get(job_id)
-        if not job or job.status in TERMINAL_STATUSES:
+        if not job or job.kind != "youtube-download" or job.status in TERMINAL_STATUSES:
             return
         if job.cancel_requested:
             await self.store.update(job_id, status="cancelled")
@@ -155,6 +155,8 @@ class DownloadProcessor:
         loop: asyncio.AbstractEventLoop,
         stop_event: threading.Event,
     ) -> dict[str, object]:
+        if not job.url or not job.output_format:
+            raise ValueError("The media job is missing its source or output format.")
         last_update = 0.0
 
         def sync_update(**changes: object) -> None:
