@@ -18,6 +18,14 @@ export function toolFixture(index: number): ToolManifest {
             icon: "qr-code",
             accent: "mint" as const,
           }
+        : index === 2
+          ? {
+              id: "image-format-converter",
+              name: "Image Format Converter",
+              category: "Convert",
+              icon: "image-square",
+              accent: "gold" as const,
+            }
         : {
             id: `test-tool-${index + 1}`,
             name: `Test Tool ${index + 1}`,

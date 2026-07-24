@@ -1,5 +1,7 @@
 import {
   Code,
+  FileDoc,
+  ImageSquare,
   QrCode,
   Video,
   type Icon,
@@ -7,6 +9,8 @@ import {
 
 const icons: Record<string, Icon> = {
   code: Code,
+  "file-doc": FileDoc,
+  "image-square": ImageSquare,
   "qr-code": QrCode,
   video: Video,
 };

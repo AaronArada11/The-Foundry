@@ -1,0 +1,13 @@
+{
+  "id": "image-format-converter",
+  "slug": "image-format-converter",
+  "name": "Image Format Converter",
+  "description": "Convert modern and common image files to JPG, PNG, or WebP.",
+  "sortOrder": 3,
+  "category": "Convert",
+  "tags": ["JPG", "PNG", "WEBP"],
+  "icon": "image-square",
+  "accent": "gold",
+  "executionType": "server-sync",
+  "availability": "available"
+}

@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     media_timeout_seconds: int = 900
     media_jobs_per_hour: int = 3
     qr_requests_per_minute: int = 30
+    max_image_bytes: int = 20 * 1024 * 1024
+    max_image_pixels: int = 40_000_000
+    image_conversions_per_minute: int = 10
     worker_concurrency: int = 2
 
     @property

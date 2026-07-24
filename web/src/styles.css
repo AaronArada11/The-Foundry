@@ -63,9 +63,22 @@ a {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+.file-dropzone:focus-within {
   outline: 2px solid var(--forest);
   outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 a {
@@ -634,6 +647,51 @@ kbd {
   gap: 10px;
 }
 
+.file-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.file-dropzone {
+  width: 100%;
+  min-height: 150px;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px dashed var(--grid-strong);
+  background: rgba(255, 255, 255, 0.52);
+  text-align: center;
+  color: var(--forest);
+  transition: border-color 160ms ease-out, background-color 160ms ease-out;
+}
+
+.file-dropzone:hover,
+.file-dropzone.is-dragging {
+  border-color: var(--forest);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.file-dropzone.has-file {
+  border-style: solid;
+}
+
+.file-dropzone strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.file-dropzone span {
+  color: rgba(26, 60, 43, 0.68);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .field-label,
 .format-fieldset legend {
   font-family: var(--mono);
@@ -918,6 +976,47 @@ kbd {
 .format-options input:focus-visible + span {
   outline: 2px solid var(--forest);
   outline-offset: 2px;
+}
+
+.range-input {
+  width: 100%;
+  min-height: 44px;
+  accent-color: var(--forest);
+}
+
+.image-preview-frame {
+  width: min(100%, 560px);
+  min-height: 360px;
+  margin: 34px auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--grid);
+  background-color: rgba(255, 255, 255, 0.64);
+  background-image:
+    linear-gradient(45deg, var(--grid) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--grid) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--grid) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--grid) 75%);
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-size: 16px 16px;
+}
+
+.image-preview-frame img {
+  width: 100%;
+  max-height: 520px;
+  object-fit: contain;
+}
+
+.image-preview-placeholder {
+  width: 130px;
+  height: 100px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--grid-strong);
+  background: var(--paper);
+  font-family: var(--mono);
+  letter-spacing: 0.18em;
 }
 
 .permission-check {
@@ -1414,6 +1513,10 @@ kbd {
   .qr-frame {
     width: calc(100% - 26px);
     margin: 42px auto;
+  }
+
+  .image-preview-frame {
+    min-height: 260px;
   }
 
   .format-options {

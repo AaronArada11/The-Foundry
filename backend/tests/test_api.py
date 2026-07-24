@@ -1,5 +1,8 @@
+import io
+
 from aaron_toolkit.app import app
 from fastapi.testclient import TestClient
+from PIL import Image
 
 
 def test_health_and_tool_catalog():
@@ -10,6 +13,7 @@ def test_health_and_tool_catalog():
     assert [tool["id"] for tool in tools] == [
         "youtube-downloader",
         "link-qr-generator",
+        "image-format-converter",
     ]
 
 
@@ -45,3 +49,20 @@ def test_download_endpoint_rejects_unsafe_url_before_queueing():
 
     assert response.status_code == 422
     assert "YouTube" in response.json()["detail"]
+
+
+def test_image_endpoint_returns_downloadable_conversion():
+    source = io.BytesIO()
+    Image.new("RGBA", (10, 6), (255, 0, 0, 128)).save(source, format="PNG")
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/image-conversions",
+            files={"file": ("sample.png", source.getvalue(), "image/png")},
+            data={"format": "jpg", "quality": "80", "background": "#FFFFFF"},
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/jpeg"
+    assert response.headers["x-artifact-filename"] == "sample.jpg"
+    assert response.content.startswith(b"\xff\xd8\xff")

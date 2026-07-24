@@ -8,7 +8,17 @@ from pathlib import Path
 from typing import Annotated, Literal
 from urllib.parse import unquote
 
-from fastapi import FastAPI, HTTPException, Query, Request, Response, status
+from fastapi import (
+    FastAPI,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -19,6 +29,7 @@ from .download_service import (
     owner_hash,
     validate_youtube_url,
 )
+from .image_service import ImageFormat, ImageValidationError, convert_image
 from .jobs import TERMINAL_STATUSES, ActiveJobError, DownloadJob
 from .manifests import load_tool_manifests
 from .qr_service import QRValidationError, generate_qr_png
@@ -155,6 +166,49 @@ async def create_qr(payload: QRRequest, request: Request) -> Response:
         headers={
             "Content-Disposition": f'attachment; filename="{result.filename}"',
             "X-Artifact-Filename": result.filename,
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@app.post("/api/image-conversions")
+async def create_image_conversion(
+    request: Request,
+    file: Annotated[UploadFile, File()],
+    target_format: Annotated[ImageFormat, Form(alias="format")],
+    quality: Annotated[int, Form(ge=1, le=95)] = 85,
+    background: Annotated[str, Form()] = "#FFFFFF",
+) -> Response:
+    current = services(request)
+    ip = client_ip(request)
+    await current.rate_limiter.check(
+        f"image:{ip}",
+        limit=current.settings.image_conversions_per_minute,
+        window_seconds=60,
+    )
+    try:
+        content = await file.read(current.settings.max_image_bytes + 1)
+        result = convert_image(
+            content,
+            source_filename=file.filename,
+            target=target_format,
+            quality=quality,
+            background=background,
+            max_bytes=current.settings.max_image_bytes,
+            max_pixels=current.settings.max_image_pixels,
+        )
+    except ImageValidationError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    finally:
+        await file.close()
+    return Response(
+        content=result.content,
+        media_type=result.content_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{result.filename}"',
+            "X-Artifact-Filename": result.filename,
+            "X-Image-Width": str(result.width),
+            "X-Image-Height": str(result.height),
             "Cache-Control": "no-store",
         },
     )
