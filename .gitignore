@@ -220,3 +220,11 @@ __marimo__/
 # Toolkit-generated output
 graphify-out/
 QR-generator/qrs/
+
+# Web and container runtime
+node_modules/
+web/dist/
+playwright-report/
+test-results/
+qa/
+.env.local
