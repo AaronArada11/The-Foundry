@@ -58,6 +58,23 @@ async def test_owner_can_have_one_active_job_of_each_kind():
     assert created.kind == "pdf-to-word"
 
 
+@pytest.mark.asyncio
+async def test_tiktok_job_has_its_own_active_owner_scope():
+    store = MemoryJobStore()
+    await store.create(make_job())
+    tiktok = DownloadJob.create_tiktok(
+        owner_hash="owner",
+        url="https://www.tiktok.com/@creator/video/7461234567890123456",
+        output_format="mp4",
+        ttl_seconds=3600,
+    )
+
+    created = await store.create(tiktok)
+
+    assert created.kind == "tiktok-download"
+    assert created.public_dict()["kind"] == "tiktok-download"
+
+
 def test_legacy_job_payload_is_read_as_youtube_job():
     job = make_job()
     payload = job.storage_dict()

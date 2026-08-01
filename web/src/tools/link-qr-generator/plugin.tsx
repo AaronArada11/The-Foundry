@@ -88,7 +88,7 @@ export default function QRGeneratorTool({ manifest }: ToolPageProps) {
   return (
     <>
       <PageTitle
-        eyebrow="Tools / 02"
+        eyebrow="Tools / 03"
         title={manifest.name}
         description={manifest.description}
       />

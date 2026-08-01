@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     max_media_bytes: int = 500 * 1024 * 1024
     media_timeout_seconds: int = 900
     media_jobs_per_hour: int = 3
+    tiktok_jobs_per_hour: int = 3
     qr_requests_per_minute: int = 30
     max_image_bytes: int = 20 * 1024 * 1024
     max_image_pixels: int = 40_000_000

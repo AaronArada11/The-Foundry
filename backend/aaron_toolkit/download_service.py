@@ -14,7 +14,7 @@ from yt_dlp import DownloadError, YoutubeDL
 from yt_dlp.utils import sanitize_filename
 
 from .config import Settings
-from .jobs import TERMINAL_STATUSES, DownloadJob, JobStore
+from .jobs import MEDIA_JOB_KINDS, TERMINAL_STATUSES, DownloadJob, JobStore
 from .media_options import build_ydl_options
 from .storage import ArtifactStore
 
@@ -27,6 +27,15 @@ ALLOWED_YOUTUBE_HOSTS = {
     "www.youtu.be",
 }
 VIDEO_ID = re.compile(r"^[A-Za-z0-9_-]{6,20}$")
+ALLOWED_TIKTOK_HOSTS = {
+    "tiktok.com",
+    "www.tiktok.com",
+    "m.tiktok.com",
+    "vm.tiktok.com",
+    "vt.tiktok.com",
+}
+TIKTOK_VIDEO_PATH = re.compile(r"^/@[^/]+/video/(?P<id>[0-9]{6,32})/?$")
+TIKTOK_SHORT_PATH = re.compile(r"^/(?:t/)?[A-Za-z0-9_-]{5,32}/?$")
 
 
 class MediaValidationError(ValueError):
@@ -67,6 +76,32 @@ def validate_youtube_url(value: str) -> str:
     return url
 
 
+def validate_tiktok_url(value: str) -> str:
+    url = value.strip()
+    if len(url) > 2048:
+        raise MediaValidationError("URL must be 2,048 characters or fewer.")
+    parsed = urlparse(url)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or parsed.hostname not in ALLOWED_TIKTOK_HOSTS
+        or parsed.username
+        or parsed.password
+        or parsed.port not in {None, 80, 443}
+    ):
+        raise MediaValidationError("Enter a valid TikTok video URL.")
+
+    is_canonical_video = bool(TIKTOK_VIDEO_PATH.fullmatch(parsed.path))
+    is_short_share = parsed.hostname in {"vm.tiktok.com", "vt.tiktok.com"} and bool(
+        TIKTOK_SHORT_PATH.fullmatch(parsed.path)
+    )
+    is_web_share = parsed.hostname in {"tiktok.com", "www.tiktok.com"} and bool(
+        re.fullmatch(r"/t/[A-Za-z0-9_-]{5,32}/?", parsed.path)
+    )
+    if not (is_canonical_video or is_short_share or is_web_share):
+        raise MediaValidationError("Use a direct, individual TikTok video URL.")
+    return url
+
+
 def owner_hash(ip_address: str, secret: str) -> str:
     return hmac.new(secret.encode(), ip_address.encode(), hashlib.sha256).hexdigest()
 
@@ -85,7 +120,7 @@ class DownloadProcessor:
 
     async def process(self, job_id: str) -> None:
         job = await self.store.get(job_id)
-        if not job or job.kind != "youtube-download" or job.status in TERMINAL_STATUSES:
+        if not job or job.kind not in MEDIA_JOB_KINDS or job.status in TERMINAL_STATUSES:
             return
         if job.cancel_requested:
             await self.store.update(job_id, status="cancelled")

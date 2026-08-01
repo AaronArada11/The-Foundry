@@ -5,6 +5,7 @@ test("catalog loads, filters, and routes to a tool", async ({ page }) => {
   await expect(page).toHaveTitle("Aaron Toolkit");
   await expect(page.getByRole("heading", { name: "Tools I use." })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open YouTube Downloader" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open TikTok Downloader" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Link QR Generator" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Image Format Converter" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open PDF to Word" })).toBeVisible();
@@ -101,6 +102,20 @@ test("QR workflow generates and exposes a PNG download", async ({ page }) => {
   await expect(page.locator("main")).not.toHaveCSS("overflow-x", "scroll");
 });
 
+test("TikTok workflow accepts a permitted individual video URL", async ({ page }) => {
+  await page.goto("/tools/tiktok-downloader");
+  await page
+    .getByLabel("TikTok URL")
+    .fill("https://www.tiktok.com/@creator/video/7461234567890123456");
+  await page.getByRole("checkbox", { name: "I have permission to download this media." }).check();
+
+  await expect(page.getByRole("button", { name: "Start download" })).toBeEnabled();
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  expect(hasHorizontalOverflow).toBe(false);
+});
+
 test("captures responsive visual references", async ({ page }, testInfo) => {
   const prefix = `../qa/visual/${testInfo.project.name}`;
 
@@ -117,6 +132,10 @@ test("captures responsive visual references", async ({ page }, testInfo) => {
   await page.goto("/tools/youtube-downloader");
   await expect(page.getByRole("heading", { name: "YouTube Downloader" })).toBeVisible();
   await page.screenshot({ path: `${prefix}-media-waiting.png`, fullPage: true });
+
+  await page.goto("/tools/tiktok-downloader");
+  await expect(page.getByRole("heading", { name: "TikTok Downloader" })).toBeVisible();
+  await page.screenshot({ path: `${prefix}-tiktok-waiting.png`, fullPage: true });
 
   await page.goto("/tools/image-format-converter");
   await expect(page.getByRole("heading", { name: "Image Format Converter" })).toBeVisible();

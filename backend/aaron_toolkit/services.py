@@ -88,6 +88,7 @@ async def build_services(settings: Settings, *, start_local_worker: bool) -> Ser
         jobs,
         {
             "youtube-download": download_processor,
+            "tiktok-download": download_processor,
             "pdf-to-word": pdf_processor,
         },
     )

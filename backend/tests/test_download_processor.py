@@ -58,6 +58,32 @@ async def test_processor_moves_job_through_ready_state():
     assert ready.download_url == "https://storage.example/download"
 
 
+@pytest.mark.asyncio
+async def test_processor_handles_tiktok_media_jobs():
+    store = MemoryJobStore()
+    job = await store.create(
+        DownloadJob.create_tiktok(
+            owner_hash="owner",
+            url="https://www.tiktok.com/@creator/video/7461234567890123456",
+            output_format="mp4",
+            ttl_seconds=3600,
+        )
+    )
+    processor = StubDownloadProcessor(
+        store=store,
+        artifacts=FakeArtifactStore(),
+        settings=Settings(),
+    )
+
+    await processor.process(job.id)
+
+    ready = await store.get(job.id)
+    assert ready
+    assert ready.kind == "tiktok-download"
+    assert ready.status == "ready"
+    assert ready.download_url == "https://storage.example/download"
+
+
 class SlowDownloadProcessor(DownloadProcessor):
     def _download_blocking(self, job, directory, loop, stop_event):
         del job, directory, loop

@@ -3,7 +3,7 @@
   "slug": "link-qr-generator",
   "name": "Link QR Generator",
   "description": "Turn a complete web link into a custom PNG.",
-  "sortOrder": 2,
+  "sortOrder": 3,
   "category": "Generate",
   "tags": ["PNG", "Colors"],
   "icon": "qr-code",

@@ -10,7 +10,8 @@ Aaron Toolkit ships as one OCI image used by two process types:
 
 - Redis 7+ for job state, ownership locks, queueing, and rate limits.
 - S3-compatible object storage with a private bucket.
-- Cloudflare Turnstile keys for anonymous media and PDF-job verification.
+- Cloudflare Turnstile keys for anonymous YouTube, TikTok, and PDF-job
+  verification.
 
 ## Required production environment
 
@@ -63,6 +64,9 @@ one-hour input retention.
 
 ## Converter limits
 
+- YouTube and TikTok downloads: 30 minutes, 500 MiB output, three jobs per IP
+  per hour for each platform, one active job per platform, and a 15-minute
+  artifact lifetime.
 - Image uploads: 20 MiB, 40 megapixels, 10 conversions per IP per minute.
 - PDF uploads: 25 MiB, 100 pages, three jobs per IP per hour, one active PDF job
   per IP, 180-second execution timeout, and a 1 GiB subprocess memory limit.

@@ -29,7 +29,7 @@ describe("registry-driven tool directory", () => {
   });
 
   it("filters by name, category, and tag", () => {
-    const tools = [toolFixture(0), toolFixture(1)];
+    const tools = [toolFixture(0), toolFixture(2)];
     expect(filterTools(tools, "youtube", "all")).toHaveLength(1);
     expect(filterTools(tools, "test", "Generate")).toHaveLength(1);
     expect(filterTools(tools, "nothing", "all")).toHaveLength(0);

@@ -6,6 +6,7 @@ def test_tool_manifests_are_unique_ordered_and_available():
 
     assert [manifest.id for manifest in manifests] == [
         "youtube-downloader",
+        "tiktok-downloader",
         "link-qr-generator",
         "image-format-converter",
         "pdf-to-word",

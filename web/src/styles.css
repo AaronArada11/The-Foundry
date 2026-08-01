@@ -631,6 +631,7 @@ kbd {
 .workspace-form,
 .workspace-result,
 .job-panel {
+  min-width: 0;
   padding: clamp(38px, 4.2vw, 66px);
 }
 
@@ -1058,6 +1059,10 @@ kbd {
   --job-accent: var(--forest);
 }
 
+.job-panel--gold {
+  --job-accent: var(--gold);
+}
+
 .job-meta {
   font-family: var(--mono);
   font-size: 13px;
@@ -1113,7 +1118,7 @@ kbd {
 .job-stages {
   padding: 34px 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(var(--job-stage-count, 4), 1fr);
   list-style: none;
 }
 

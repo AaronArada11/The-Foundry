@@ -9,7 +9,9 @@ from typing import Literal, Protocol
 
 from redis.asyncio import Redis
 
-JobKind = Literal["youtube-download", "pdf-to-word"]
+MediaJobKind = Literal["youtube-download", "tiktok-download"]
+JobKind = Literal["youtube-download", "tiktok-download", "pdf-to-word"]
+MEDIA_JOB_KINDS = frozenset({"youtube-download", "tiktok-download"})
 JobStatus = Literal[
     "queued",
     "downloading",
@@ -59,9 +61,44 @@ class ToolJob:
         output_format: Literal["mp4", "mp3", "mov"],
         ttl_seconds: int,
     ) -> ToolJob:
-        return cls._new(
+        return cls.create_media(
             owner_hash=owner_hash,
             kind="youtube-download",
+            url=url,
+            output_format=output_format,
+            ttl_seconds=ttl_seconds,
+        )
+
+    @classmethod
+    def create_tiktok(
+        cls,
+        *,
+        owner_hash: str,
+        url: str,
+        output_format: Literal["mp4", "mp3", "mov"],
+        ttl_seconds: int,
+    ) -> ToolJob:
+        return cls.create_media(
+            owner_hash=owner_hash,
+            kind="tiktok-download",
+            url=url,
+            output_format=output_format,
+            ttl_seconds=ttl_seconds,
+        )
+
+    @classmethod
+    def create_media(
+        cls,
+        *,
+        owner_hash: str,
+        kind: MediaJobKind,
+        url: str,
+        output_format: Literal["mp4", "mp3", "mov"],
+        ttl_seconds: int,
+    ) -> ToolJob:
+        return cls._new(
+            owner_hash=owner_hash,
+            kind=kind,
             ttl_seconds=ttl_seconds,
             url=url,
             output_format=output_format,
@@ -137,7 +174,7 @@ class ToolJob:
 
     @property
     def active_job_message(self) -> str:
-        label = "media" if self.kind == "youtube-download" else "PDF conversion"
+        label = "media" if self.kind in MEDIA_JOB_KINDS else "PDF conversion"
         return f"one active {label} job is allowed per visitor"
 
     def public_dict(self) -> dict[str, object]:
@@ -153,7 +190,7 @@ class ToolJob:
             "updatedAt": self.updated_at,
             "expiresAt": self.expires_at,
         }
-        if self.kind == "youtube-download":
+        if self.kind in MEDIA_JOB_KINDS:
             payload.update(
                 {
                     "format": self.output_format,
@@ -161,6 +198,8 @@ class ToolJob:
                     "durationSeconds": self.duration_seconds,
                 }
             )
+            if self.kind == "tiktok-download":
+                payload["kind"] = self.kind
         else:
             payload.update({"kind": self.kind, "sourceFilename": self.source_filename})
         return payload

@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import tempfile
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Literal
@@ -28,10 +28,18 @@ from .config import get_settings
 from .download_service import (
     MediaValidationError,
     owner_hash,
+    validate_tiktok_url,
     validate_youtube_url,
 )
 from .image_service import ImageFormat, ImageValidationError, convert_image
-from .jobs import TERMINAL_STATUSES, ActiveJobError, DownloadJob, JobKind, ToolJob
+from .jobs import (
+    TERMINAL_STATUSES,
+    ActiveJobError,
+    DownloadJob,
+    JobKind,
+    MediaJobKind,
+    ToolJob,
+)
 from .manifests import load_tool_manifests
 from .pdf_service import PDFValidationError, validate_pdf
 from .qr_service import QRValidationError, generate_qr_png
@@ -122,6 +130,58 @@ class DownloadRequest(BaseModel):
     format: Literal["mp4", "mp3", "mov"]
     turnstile_token: str | None = Field(default=None, alias="turnstileToken")
     permission_confirmed: bool = Field(alias="permissionConfirmed")
+
+
+async def create_media_download_job(
+    payload: DownloadRequest,
+    request: Request,
+    *,
+    kind: MediaJobKind,
+    validate_url: Callable[[str], str],
+    rate_scope: str,
+    rate_limit: int,
+    endpoint: str,
+) -> dict[str, object]:
+    current = services(request)
+    ip = client_ip(request)
+    if not payload.permission_confirmed:
+        raise HTTPException(
+            status_code=422,
+            detail="Confirm that you have permission to download this media.",
+        )
+    try:
+        url = validate_url(payload.url)
+        await verify_turnstile(
+            payload.turnstile_token,
+            remote_ip=ip,
+            secret=current.settings.turnstile_secret_key,
+            production=current.settings.is_production,
+        )
+    except (MediaValidationError, VerificationError) as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    await current.rate_limiter.check(
+        f"{rate_scope}:{ip}",
+        limit=rate_limit,
+        window_seconds=3600,
+    )
+    job = DownloadJob.create_media(
+        owner_hash=owner_hash(ip, current.settings.signing_secret),
+        kind=kind,
+        url=url,
+        output_format=payload.format,
+        ttl_seconds=current.settings.job_ttl_seconds,
+    )
+    try:
+        await current.jobs.create(job)
+    except ActiveJobError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+    await current.jobs.enqueue(job.id)
+    return {
+        **job.public_dict(),
+        "statusUrl": f"{endpoint}/{job.id}",
+        "eventsUrl": f"{endpoint}/{job.id}/events",
+    }
 
 
 async def get_tool_job(
@@ -267,44 +327,15 @@ async def create_download_job(
     request: Request,
 ) -> dict[str, object]:
     current = services(request)
-    ip = client_ip(request)
-    if not payload.permission_confirmed:
-        raise HTTPException(
-            status_code=422,
-            detail="Confirm that you have permission to download this media.",
-        )
-    try:
-        url = validate_youtube_url(payload.url)
-        await verify_turnstile(
-            payload.turnstile_token,
-            remote_ip=ip,
-            secret=current.settings.turnstile_secret_key,
-            production=current.settings.is_production,
-        )
-    except (MediaValidationError, VerificationError) as error:
-        raise HTTPException(status_code=422, detail=str(error)) from error
-
-    await current.rate_limiter.check(
-        f"media:{ip}",
-        limit=current.settings.media_jobs_per_hour,
-        window_seconds=3600,
+    return await create_media_download_job(
+        payload,
+        request,
+        kind="youtube-download",
+        validate_url=validate_youtube_url,
+        rate_scope="media",
+        rate_limit=current.settings.media_jobs_per_hour,
+        endpoint="/api/download-jobs",
     )
-    job = DownloadJob.create(
-        owner_hash=owner_hash(ip, current.settings.signing_secret),
-        url=url,
-        output_format=payload.format,
-        ttl_seconds=current.settings.job_ttl_seconds,
-    )
-    try:
-        await current.jobs.create(job)
-    except ActiveJobError as error:
-        raise HTTPException(status_code=409, detail=str(error)) from error
-    await current.jobs.enqueue(job.id)
-    return {
-        **job.public_dict(),
-        "statusUrl": f"/api/download-jobs/{job.id}",
-        "eventsUrl": f"/api/download-jobs/{job.id}/events",
-    }
 
 
 @app.get("/api/download-jobs/{job_id}")
@@ -321,6 +352,42 @@ async def download_job_events(job_id: str, request: Request) -> StreamingRespons
 @app.delete("/api/download-jobs/{job_id}")
 async def cancel_download_job(job_id: str, request: Request) -> dict[str, object]:
     await get_tool_job(request, job_id, "youtube-download")
+    job = await services(request).jobs.request_cancel(job_id)
+    assert job
+    return job.public_dict()
+
+
+@app.post("/api/tiktok-download-jobs", status_code=status.HTTP_202_ACCEPTED)
+async def create_tiktok_download_job(
+    payload: DownloadRequest,
+    request: Request,
+) -> dict[str, object]:
+    current = services(request)
+    return await create_media_download_job(
+        payload,
+        request,
+        kind="tiktok-download",
+        validate_url=validate_tiktok_url,
+        rate_scope="tiktok-media",
+        rate_limit=current.settings.tiktok_jobs_per_hour,
+        endpoint="/api/tiktok-download-jobs",
+    )
+
+
+@app.get("/api/tiktok-download-jobs/{job_id}")
+async def get_tiktok_download_job(job_id: str, request: Request) -> dict[str, object]:
+    job = await get_tool_job(request, job_id, "tiktok-download")
+    return job.public_dict()
+
+
+@app.get("/api/tiktok-download-jobs/{job_id}/events")
+async def tiktok_download_job_events(job_id: str, request: Request) -> StreamingResponse:
+    return await tool_job_events(request, job_id, "tiktok-download")
+
+
+@app.delete("/api/tiktok-download-jobs/{job_id}")
+async def cancel_tiktok_download_job(job_id: str, request: Request) -> dict[str, object]:
+    await get_tool_job(request, job_id, "tiktok-download")
     job = await services(request).jobs.request_cancel(job_id)
     assert job
     return job.public_dict()

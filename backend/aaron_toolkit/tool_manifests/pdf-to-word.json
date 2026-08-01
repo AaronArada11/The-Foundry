@@ -3,7 +3,7 @@
   "slug": "pdf-to-word",
   "name": "PDF to Word",
   "description": "Turn a text-based PDF into an editable Word document.",
-  "sortOrder": 4,
+  "sortOrder": 5,
   "category": "Convert",
   "tags": ["PDF", "DOCX"],
   "icon": "file-doc",

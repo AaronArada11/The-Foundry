@@ -1,4 +1,5 @@
 import { DownloadSimple, X } from "@phosphor-icons/react";
+import type { CSSProperties } from "react";
 
 export type JobStatus =
   | "queued"
@@ -42,7 +43,7 @@ export function JobProgressPanel<T extends JobSummary>({
   meta: (job: T) => string;
   downloadLabel: (job: T) => string;
   progressLabel: string;
-  accent?: "coral" | "forest";
+  accent?: "coral" | "forest" | "gold";
   onCancel: () => void;
 }) {
   const currentIndex = job
@@ -71,7 +72,7 @@ export function JobProgressPanel<T extends JobSummary>({
       </div>
       <ol
         className="job-stages"
-        style={{ gridTemplateColumns: `repeat(${stages.length}, 1fr)` }}
+        style={{ "--job-stage-count": stages.length } as CSSProperties}
       >
         {stages.map((stage, index) => {
           const isCurrent = job?.status === stage.status;

@@ -12,6 +12,7 @@ def test_health_and_tool_catalog():
 
     assert [tool["id"] for tool in tools] == [
         "youtube-downloader",
+        "tiktok-downloader",
         "link-qr-generator",
         "image-format-converter",
         "pdf-to-word",
@@ -50,6 +51,22 @@ def test_download_endpoint_rejects_unsafe_url_before_queueing():
 
     assert response.status_code == 422
     assert "YouTube" in response.json()["detail"]
+
+
+def test_tiktok_download_endpoint_rejects_unsafe_url_before_queueing():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/tiktok-download-jobs",
+            json={
+                "url": "http://127.0.0.1/private",
+                "format": "mp4",
+                "turnstileToken": "dev-bypass",
+                "permissionConfirmed": True,
+            },
+        )
+
+    assert response.status_code == 422
+    assert "TikTok" in response.json()["detail"]
 
 
 def test_image_endpoint_returns_downloadable_conversion():

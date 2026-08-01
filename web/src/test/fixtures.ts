@@ -12,13 +12,21 @@ export function toolFixture(index: number): ToolManifest {
         }
       : index === 1
         ? {
+            id: "tiktok-downloader",
+            name: "TikTok Downloader",
+            category: "Media",
+            icon: "tiktok-logo",
+            accent: "gold" as const,
+          }
+        : index === 2
+          ? {
             id: "link-qr-generator",
             name: "Link QR Generator",
             category: "Generate",
             icon: "qr-code",
             accent: "mint" as const,
           }
-        : index === 2
+        : index === 3
           ? {
               id: "image-format-converter",
               name: "Image Format Converter",
@@ -26,7 +34,7 @@ export function toolFixture(index: number): ToolManifest {
               icon: "image-square",
               accent: "gold" as const,
             }
-          : index === 3
+          : index === 4
             ? {
                 id: "pdf-to-word",
                 name: "PDF to Word",

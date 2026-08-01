@@ -3,7 +3,7 @@
   "slug": "image-format-converter",
   "name": "Image Format Converter",
   "description": "Convert modern and common image files to JPG, PNG, or WebP.",
-  "sortOrder": 3,
+  "sortOrder": 4,
   "category": "Convert",
   "tags": ["JPG", "PNG", "WEBP"],
   "icon": "image-square",

@@ -125,7 +125,7 @@ export default function PDFToWordTool({ manifest }: ToolPageProps) {
   return (
     <>
       <PageTitle
-        eyebrow="Tools / 04"
+        eyebrow="Tools / 05"
         title={manifest.name}
         description={manifest.description}
       />

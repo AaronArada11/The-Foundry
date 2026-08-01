@@ -121,7 +121,7 @@ export default function ImageFormatConverter({ manifest }: ToolPageProps) {
   return (
     <>
       <PageTitle
-        eyebrow="Tools / 03"
+        eyebrow="Tools / 04"
         title={manifest.name}
         description={manifest.description}
       />

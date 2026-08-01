@@ -1,0 +1,13 @@
+{
+  "id": "tiktok-downloader",
+  "slug": "tiktok-downloader",
+  "name": "TikTok Downloader",
+  "description": "Save permitted TikTok videos as MP4, MP3, or MOV.",
+  "sortOrder": 2,
+  "category": "Media",
+  "tags": ["MP4", "MP3", "MOV"],
+  "icon": "tiktok-logo",
+  "accent": "gold",
+  "executionType": "server-job",
+  "availability": "available"
+}

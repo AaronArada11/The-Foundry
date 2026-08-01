@@ -3,6 +3,7 @@ import {
   FileDoc,
   ImageSquare,
   QrCode,
+  TiktokLogo,
   Video,
   type Icon,
 } from "@phosphor-icons/react";
@@ -12,6 +13,7 @@ const icons: Record<string, Icon> = {
   "file-doc": FileDoc,
   "image-square": ImageSquare,
   "qr-code": QrCode,
+  "tiktok-logo": TiktokLogo,
   video: Video,
 };
 
