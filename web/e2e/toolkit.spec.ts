@@ -9,6 +9,7 @@ test("catalog loads, filters, and routes to a tool", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Open Link QR Generator" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Image Format Converter" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open PDF to Word" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open Schedule Comparator" })).toBeVisible();
 
   const columnCount = await page
     .locator(".tool-grid")
@@ -100,6 +101,98 @@ test("QR workflow generates and exposes a PNG download", async ({ page }) => {
     "example.com-qr.png",
   );
   await expect(page.locator("main")).not.toHaveCSS("overflow-x", "scroll");
+});
+
+test("schedule comparator reviews, overlays, recommends, and exports", async ({ page }) => {
+  await page.goto("/tools/schedule-comparator");
+  const now = new Date().toISOString();
+  const confidence = {
+    subject: 96, name: 96, days: 96, start: 96, end: 96,
+    room: 96, instructor: 100, units: 96, overall: 96,
+  };
+  const makeClass = (id: string, sourceImageId: string, subject: string, name: string, days: string[], start: string, end: string, room: string) => ({
+    id, sourceImageId, subject, name, days, start, end, room,
+    instructor: "", units: 3, confidence,
+  });
+  const project = {
+    version: 1,
+    id: "project-e2e-schedule",
+    title: "Schedule comparison",
+    createdAt: now,
+    updatedAt: now,
+    screenshots: ["a", "b"].map((id) => ({
+      id: `shot-${id}`, name: `CS3${id.toUpperCase()}.png`, type: "image/png",
+      size: 68, width: 1200, height: 800, previewUrl: "", status: "ready",
+      progress: 100, error: null, averageConfidence: 96,
+    })),
+    sections: [
+      {
+        id: "section-a", name: "CS3A", color: "#3BCB75", screenshotId: "shot-a",
+        classes: [
+          makeClass("a1", "shot-a", "CS101", "Mobile Programming", ["Mon", "Wed"], "08:00", "09:30", "LAB203"),
+          makeClass("a2", "shot-a", "MATH53", "Discrete Math", ["Tue", "Thu"], "10:00", "11:30", "SCI101"),
+          makeClass("a3", "shot-a", "CS303", "Algorithms", ["Fri"], "15:00", "18:00", "LAB204"),
+        ],
+      },
+      {
+        id: "section-b", name: "CS3B", color: "#2784C7", screenshotId: "shot-b",
+        classes: [
+          makeClass("b1", "shot-b", "CS101", "Mobile Programming", ["Mon", "Wed"], "09:00", "10:30", "LAB203"),
+          makeClass("b2", "shot-b", "MATH53", "Discrete Math", ["Tue", "Thu"], "13:00", "14:30", "SCI101"),
+          makeClass("b3", "shot-b", "CS303", "Algorithms", ["Fri"], "13:00", "16:00", "LAB204"),
+        ],
+      },
+    ],
+    preferences: {
+      preset: "balanced",
+      weights: { start: 15, dismissal: 20, campus: 20, idle: 20, days: 10, weekend: 15 },
+      noSaturday: false, noClassesBefore: "", noClassesAfter: "", idleDirection: "minimum",
+    },
+  };
+
+  await page.evaluate(async (seed) => {
+    await new Promise<void>((resolve, reject) => {
+      const request = indexedDB.open("aaron-schedule-comparator", 1);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        const projects = db.createObjectStore("projects", { keyPath: "id" });
+        projects.createIndex("by-updated", "updatedAt");
+        db.createObjectStore("images");
+      };
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(["projects", "images"], "readwrite");
+        transaction.objectStore("projects").put(seed);
+        for (const screenshot of seed.screenshots) {
+          transaction.objectStore("images").put(new Blob(["fixture"], { type: "image/png" }), screenshot.id);
+        }
+        transaction.oncomplete = () => { db.close(); resolve(); };
+        transaction.onerror = () => reject(transaction.error);
+      };
+    });
+    localStorage.setItem("aaron-toolkit:schedule-project", seed.id);
+    localStorage.setItem("aaron-toolkit:schedule-step", "upload");
+  }, project);
+  await page.reload();
+
+  await expect(page.getByText("CS3A.png", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Review extracted classes" }).click();
+  await expect(page.getByLabel("Section name")).toHaveValue("CS3A");
+  await page.getByRole("button", { name: "Compare 2 sections" }).click();
+  await expect(page.getByRole("heading", { name: /best matches your preferences/i })).toBeVisible();
+
+  await page.getByRole("checkbox", { name: "CS3A" }).check();
+  await page.getByRole("checkbox", { name: "CS3B" }).check();
+  await expect(page.getByText(/overlapping class meeting/)).toBeVisible();
+  await page.getByRole("button", { name: "Recommend best" }).click();
+  await expect(page.getByText("Match score", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Export comparison" }).click();
+  await expect(page.getByRole("heading", { name: "Your comparison is ready." })).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download CSV" }).click();
+  await expect((await download).suggestedFilename()).toBe("schedule-comparison.csv");
 });
 
 test("TikTok workflow accepts a permitted individual video URL", async ({ page }) => {

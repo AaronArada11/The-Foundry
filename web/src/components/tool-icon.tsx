@@ -1,4 +1,5 @@
 import {
+  CalendarBlank,
   Code,
   FileDoc,
   ImageSquare,
@@ -9,6 +10,7 @@ import {
 } from "@phosphor-icons/react";
 
 const icons: Record<string, Icon> = {
+  "calendar-blank": CalendarBlank,
   code: Code,
   "file-doc": FileDoc,
   "image-square": ImageSquare,

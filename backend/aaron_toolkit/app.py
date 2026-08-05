@@ -92,11 +92,12 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
-        "script-src 'self' https://challenges.cloudflare.com; "
+        "script-src 'self' 'wasm-unsafe-eval' https://challenges.cloudflare.com; "
         "frame-src https://challenges.cloudflare.com; "
         "connect-src 'self' https://challenges.cloudflare.com; "
+        "worker-src 'self' blob:; "
         "style-src 'self' 'unsafe-inline'; "
-        "font-src 'self'; img-src 'self' blob: data:; object-src 'none'; base-uri 'self'"
+        "font-src 'self' data:; img-src 'self' blob: data:; object-src 'none'; base-uri 'self'"
     )
     return response
 
