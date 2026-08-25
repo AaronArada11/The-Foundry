@@ -20,13 +20,23 @@ DOWNLOAD_DIRECTORY = Path(__file__).resolve().parent / "downloads"
 
 def download(url: str, output_format: str) -> None:
     normalized = validate_youtube_url(url)
+
     DOWNLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
     options = build_ydl_options(
         output_format,  # type: ignore[arg-type]
         outtmpl=str(DOWNLOAD_DIRECTORY / "%(title).180B [%(id)s].%(ext)s"),
     )
-    with YoutubeDL(options) as downloader:
-        downloader.download([normalized])
+
+    print(f"Downloading as {output_format.upper()}...")
+    print(f"Options: {options}")
+
+    try:
+        with YoutubeDL(options) as downloader:
+            downloader.download([normalized])
+    except DownloadError as error:
+        print(f"\nYT-DLP ERROR:\n{error}\n", file=sys.stderr)
+        raise
 
 
 def download_mp4(url: str) -> None:
@@ -65,10 +75,18 @@ def main() -> int:
         output_format, action = actions[choice]
         try:
             action(input("\nEnter YouTube URL: "))
+
         except MediaValidationError as error:
             print(f"\n{error}\n", file=sys.stderr)
             continue
-        print(f"\n{output_format.upper()} download complete!\n")
+
+        except DownloadError as error:
+            print(f"\nDownload failed:\n{error}\n", file=sys.stderr)
+            continue
+
+        except Exception as error:
+            print(f"\nUnexpected error:\n{error}\n", file=sys.stderr)
+            continue
 
 
 if __name__ == "__main__":
