@@ -32,10 +32,10 @@ class Settings(BaseSettings):
 
     artifact_directory: Path = Field(default_factory=lambda: Path("/tmp/aaron-toolkit-artifacts"))
     artifact_ttl_seconds: int = 900
-    job_ttl_seconds: int = 3600
-    max_media_duration_seconds: int = 1800
+    job_ttl_seconds: int = 7200
+    max_media_duration_seconds: int = 7200
     max_media_bytes: int = 500 * 1024 * 1024
-    media_timeout_seconds: int = 900
+    media_timeout_seconds: int = 3600
     media_jobs_per_hour: int = 3
     tiktok_jobs_per_hour: int = 3
     qr_requests_per_minute: int = 30

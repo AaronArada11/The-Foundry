@@ -53,20 +53,21 @@ one worker process.
 - Web and worker processes schedule deletion when that 15-minute window closes.
 - Uploaded PDF inputs use private `inputs/` objects and are deleted in the worker's
   cleanup path immediately after success, failure, timeout, or cancellation.
-- Job metadata expires after one hour.
+- Job metadata and temporary inputs expire after two hours.
 - Temporary working directories are isolated per job and removed after each run.
 - The S3 bucket must remain private; only pre-signed GET URLs are exposed.
 
 Configure bucket lifecycle expiration as a second cleanup layer for both
 `artifacts/` and `inputs/` objects. A one-day lifecycle is sufficient to catch
 orphaned objects while the application continues issuing 15-minute URLs and
-one-hour input retention.
+two-hour input retention.
 
 ## Converter limits
 
-- YouTube and TikTok downloads: 30 minutes, 500 MiB output, three jobs per IP
-  per hour for each platform, one active job per platform, and a 15-minute
-  artifact lifetime.
+- YouTube and TikTok downloads: two hours, 500 MiB output, three jobs per IP
+  per hour for each platform, one active job per platform, a one-hour execution
+  timeout, and a 15-minute artifact lifetime. Long videos automatically use a
+  lower-bitrate source when necessary to stay within the output limit.
 - Image uploads: 20 MiB, 40 megapixels, 10 conversions per IP per minute.
 - PDF uploads: 25 MiB, 100 pages, three jobs per IP per hour, one active PDF job
   per IP, 180-second execution timeout, and a 1 GiB subprocess memory limit.

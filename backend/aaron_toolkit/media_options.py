@@ -29,6 +29,19 @@ def build_ydl_options(
     if max_filesize:
         options["max_filesize"] = max_filesize
 
+    # Prefer streams whose estimated combined size fits the artifact limit. Without
+    # this, yt-dlp selects the highest-quality streams first; long videos then fail
+    # even when a lower-resolution version would fit comfortably.
+    video_format = "bestvideo+bestaudio/best"
+    if max_filesize:
+        video_budget = max_filesize * 3 // 4
+        audio_budget = max_filesize - video_budget
+        video_format = (
+            f"bestvideo[filesize_approx<=?{video_budget}]"
+            f"+bestaudio[filesize_approx<=?{audio_budget}]"
+            f"/best[filesize_approx<=?{max_filesize}]"
+        )
+
     if output_format == "mp3":
         options.update(
             {
@@ -45,7 +58,7 @@ def build_ydl_options(
     elif output_format == "mov":
         options.update(
             {
-                "format": "bestvideo+bestaudio/best",
+                "format": video_format,
                 "postprocessors": [
                     {
                         "key": "FFmpegVideoConvertor",
@@ -57,7 +70,7 @@ def build_ydl_options(
     else:
         options.update(
             {
-                "format": "bestvideo+bestaudio/best",
+                "format": video_format,
                 "merge_output_format": "mp4",
             }
         )
