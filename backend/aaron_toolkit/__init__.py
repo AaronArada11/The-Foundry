@@ -1,3 +1,3 @@
-"""Aaron Toolkit application package."""
+"""Foundry application package."""
 
 __version__ = "1.0.0"

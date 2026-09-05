@@ -1,6 +1,7 @@
-# Aaron Toolkit
+# Foundry
 
-Aaron Toolkit is an extensible public web app for small utilities. The catalog is
+Foundry is an extensible public web app for practical utilities—tools, forged for
+getting things done. The catalog is
 registry-driven: adding a tool manifest and its feature module automatically adds
 it to search, navigation, and routing without changing the homepage.
 

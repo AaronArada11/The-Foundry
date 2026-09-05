@@ -64,7 +64,7 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="Aaron Toolkit API",
+    title="Foundry API",
     version="1.0.0",
     docs_url="/api/docs" if not settings.is_production else None,
     redoc_url=None,

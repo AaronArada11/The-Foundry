@@ -1,6 +1,6 @@
 # Container deployment
 
-Aaron Toolkit ships as one OCI image used by two process types:
+Foundry ships as one OCI image used by two process types:
 
 - Web: serves the compiled React app and FastAPI API.
 - Worker: consumes typed tool jobs from Redis and runs bounded media or document

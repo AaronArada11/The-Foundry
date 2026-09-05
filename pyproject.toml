@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "aaron-toolkit"
 version = "1.0.0"
-description = "Extensible public web toolkit with FastAPI and React"
+description = "Foundry — an extensible public web toolkit built with FastAPI and React"
 requires-python = ">=3.11"
 dependencies = [
   "boto3>=1.35,<2",

@@ -17,7 +17,7 @@ def test_real_pdf_to_docx_conversion(tmp_path: Path):
     output = tmp_path / "output.docx"
     document = pymupdf.open()
     page = document.new_page()
-    page.insert_text((72, 72), "Aaron Toolkit conversion smoke test")
+    page.insert_text((72, 72), "Foundry conversion smoke test")
     document.save(source)
     document.close()
 
@@ -25,4 +25,4 @@ def test_real_pdf_to_docx_conversion(tmp_path: Path):
 
     converted = Document(output)
     text = "\n".join(paragraph.text for paragraph in converted.paragraphs)
-    assert "Aaron Toolkit conversion smoke test" in text
+    assert "Foundry conversion smoke test" in text
