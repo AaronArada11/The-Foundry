@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import tempfile
+import time
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -206,6 +207,7 @@ async def tool_job_events(
 
     async def stream() -> AsyncIterator[str]:
         last_version = ""
+        last_heartbeat = time.monotonic()
         while not await request.is_disconnected():
             job = await store.get(job_id)
             if not job or job.kind != kind:
@@ -215,6 +217,10 @@ async def tool_job_events(
             if version != last_version:
                 yield f"data: {json.dumps(job.public_dict())}\n\n"
                 last_version = version
+                last_heartbeat = time.monotonic()
+            elif time.monotonic() - last_heartbeat >= 15:
+                yield ": keep-alive\n\n"
+                last_heartbeat = time.monotonic()
             if job.status in TERMINAL_STATUSES:
                 return
             await asyncio.sleep(0.5)

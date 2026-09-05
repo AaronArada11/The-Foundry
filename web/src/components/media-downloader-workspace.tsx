@@ -76,6 +76,7 @@ export function MediaDownloaderWorkspace({
     source.onmessage = (event) => {
       const update = JSON.parse(event.data) as DownloadJob;
       setJob(update);
+      setError(null);
       if (terminalStatuses.includes(update.status)) {
         source.close();
         if (update.error) {
@@ -84,8 +85,7 @@ export function MediaDownloaderWorkspace({
       }
     };
     source.onerror = () => {
-      source.close();
-      setError("Live progress disconnected. Refresh the page to check the job.");
+      setError("Live progress is reconnecting…");
     };
   }
 
