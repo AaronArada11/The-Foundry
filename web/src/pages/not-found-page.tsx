@@ -6,13 +6,13 @@ export function NotFoundPage() {
   return (
     <>
       <PageTitle
-        eyebrow="Error / 404"
+        eyebrow="404 / Not found"
         title="Tool not found."
-        description="The route may have moved, or this tool is not available."
+        description="This route may have moved, or the tool is not currently available in Foundry."
       />
       <section className="not-found">
         <Link className="button button--primary" to="/">
-          Return to tools
+          Explore all tools
         </Link>
       </section>
     </>

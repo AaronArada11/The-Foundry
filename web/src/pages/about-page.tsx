@@ -4,14 +4,14 @@ export function AboutPage() {
   return (
     <>
       <PageTitle
-        eyebrow="About / 02"
-        title="Small tools. Sharp edges."
-        description="Aaron Toolkit is a growing set of focused utilities with one shared, extensible interface."
+        eyebrow="About Foundry"
+        title="Built for the task at hand."
+        description="Foundry brings focused, dependable utilities together in one shared, extensible interface."
       />
       <section className="about-grid">
         <div>
-          <p className="section-index">01 / Purpose</p>
-          <h2>Built to get out of the way.</h2>
+          <p className="section-index">Purpose</p>
+          <h2>A practical workshop for everyday work.</h2>
         </div>
         <div className="about-copy">
           <p>

@@ -12,6 +12,7 @@ import {
 import { Link } from "react-router-dom";
 
 import { useCatalog } from "../catalog";
+import { BrandMark } from "../components/brand-mark";
 import { ToolIcon } from "../components/tool-icon";
 import type { ToolManifest } from "../types";
 
@@ -124,16 +125,27 @@ export function HomePage() {
   return (
     <>
       <header className="directory-title">
-        <h1>Tools I use.</h1>
-        <p>
-          A growing collection of practical utilities, built to get out of the
-          way.
-        </p>
-        <div
-          aria-label={`${tools.length} active ${tools.length === 1 ? "tool" : "tools"}`}
-          className="tool-count"
-        >
-          <strong>{tools.length}</strong> active {tools.length === 1 ? "tool" : "tools"}
+        <div className="hero-copy">
+          <h1>Tools, forged for getting things done.</h1>
+          <p>
+            An all-in-one collection of simple, powerful tools for school, work,
+            and everyday life.
+          </p>
+          <div className="hero-actions">
+            <a className="button button--primary hero-cta" href="#tool-directory">
+              Explore Tools
+              <ArrowRight size={22} aria-hidden="true" />
+            </a>
+            <div
+              aria-label={`${tools.length} active ${tools.length === 1 ? "tool" : "tools"}`}
+              className="tool-count"
+            >
+              <strong>{tools.length}</strong> {tools.length === 1 ? "tool" : "tools"} and counting
+            </div>
+          </div>
+        </div>
+        <div className="foundry-blueprint" aria-hidden="true">
+          <BrandMark />
         </div>
       </header>
 
@@ -178,6 +190,7 @@ export function HomePage() {
       ) : null}
 
       <section
+        id="tool-directory"
         className={query !== deferredQuery ? "tool-directory is-filtering" : "tool-directory"}
         aria-live="polite"
         aria-busy={query !== deferredQuery}
@@ -185,13 +198,13 @@ export function HomePage() {
         {loading ? <CatalogLoading /> : null}
         {error ? (
           <div className="catalog-message catalog-message--error" role="alert">
-            <strong>Registry unavailable.</strong>
+            <strong>The Foundry is temporarily unavailable.</strong>
             <span>{error}</span>
           </div>
         ) : null}
         {!loading && !error && tools.length === 0 ? (
           <div className="catalog-message">
-            <strong>No tools are registered yet.</strong>
+            <strong>No tools are in the Foundry yet.</strong>
             <span>Add a validated tool manifest and feature plugin to begin.</span>
           </div>
         ) : null}
