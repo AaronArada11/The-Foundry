@@ -18,14 +18,14 @@ function ToolRoute() {
   const { slug = "" } = useParams();
   const { tools, loading } = useCatalog();
   if (loading) {
-    return <div className="route-loading">Loading tool…</div>;
+    return <div className="route-loading">Opening the Foundry…</div>;
   }
   const manifest = tools.find((tool) => tool.slug === slug);
   if (!manifest) {
     return <NotFoundPage />;
   }
   return (
-    <Suspense fallback={<div className="route-loading">Loading tool…</div>}>
+    <Suspense fallback={<div className="route-loading">Opening tool…</div>}>
       <ToolPlugin slug={slug} manifest={manifest} />
     </Suspense>
   );

@@ -8,7 +8,9 @@ import { BrandMark } from "./brand-mark";
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, setTheme] = useState<"system" | "light" | "dark">(() => {
-    const stored = localStorage.getItem("aaron-toolkit:theme");
+    const stored =
+      localStorage.getItem("foundry:theme") ??
+      localStorage.getItem("aaron-toolkit:theme");
     return stored === "light" || stored === "dark" ? stored : "system";
   });
   const health = useHealth();
@@ -19,7 +21,7 @@ export function SiteHeader() {
       const resolved = theme === "system" ? (media.matches ? "dark" : "light") : theme;
       document.documentElement.dataset.theme = resolved;
       document.documentElement.style.colorScheme = resolved;
-      localStorage.setItem("aaron-toolkit:theme", theme);
+      localStorage.setItem("foundry:theme", theme);
     };
     apply();
     media.addEventListener("change", apply);
@@ -34,7 +36,7 @@ export function SiteHeader() {
       <div className="header-main">
         <Link className="brand" to="/" onClick={() => setMenuOpen(false)}>
           <BrandMark />
-          <span>Aaron Toolkit</span>
+          <span>Foundry</span>
         </Link>
         <nav
           id="mobile-navigation"
@@ -42,16 +44,16 @@ export function SiteHeader() {
           aria-label="Primary navigation"
         >
           <NavLink to="/" onClick={() => setMenuOpen(false)}>
-            01. Tools
+            Tools
           </NavLink>
           <NavLink to="/about" onClick={() => setMenuOpen(false)}>
-            02. About
+            About
           </NavLink>
         </nav>
         <div className="header-utilities">
           <div className={`system-status system-status--${health}`} role="status">
             <span className="status-dot" />
-            System {health}
+            {health === "online" ? "All systems operational" : "System degraded"}
           </div>
           <button
             className="theme-toggle"
@@ -79,7 +81,7 @@ export function SiteHeader() {
         aria-hidden="true"
       >
         <span className="status-dot" />
-        System {health}
+        {health === "online" ? "All systems operational" : "System degraded"}
       </div>
     </header>
   );
