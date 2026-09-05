@@ -16,7 +16,6 @@ def test_health_and_tool_catalog():
         "link-qr-generator",
         "image-format-converter",
         "pdf-to-word",
-        "schedule-comparator",
     ]
 
 
