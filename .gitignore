@@ -228,3 +228,7 @@ playwright-report/
 test-results/
 qa/
 .env.local
+
+
+
+.impeccable/
