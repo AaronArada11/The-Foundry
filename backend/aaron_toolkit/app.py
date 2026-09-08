@@ -26,6 +26,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .config import get_settings
+from .document_service import (
+    DocumentValidationError,
+    detect_document_format,
+    validate_document,
+)
 from .download_service import (
     MediaValidationError,
     owner_hash,
@@ -42,7 +47,6 @@ from .jobs import (
     ToolJob,
 )
 from .manifests import load_tool_manifests
-from .pdf_service import PDFValidationError, validate_pdf
 from .qr_service import QRValidationError, generate_qr_png
 from .rate_limit import RateLimitExceeded
 from .services import Services, build_services
@@ -400,10 +404,11 @@ async def cancel_tiktok_download_job(job_id: str, request: Request) -> dict[str,
     return job.public_dict()
 
 
-@app.post("/api/pdf-to-word-jobs", status_code=status.HTTP_202_ACCEPTED)
-async def create_pdf_to_word_job(
+@app.post("/api/document-conversion-jobs", status_code=status.HTTP_202_ACCEPTED)
+async def create_document_conversion_job(
     request: Request,
     file: Annotated[UploadFile, File()],
+    output_format: Annotated[Literal["pdf", "docx", "md"], Form(alias="outputFormat")],
     turnstile_token: Annotated[str | None, Form(alias="turnstileToken")] = None,
 ) -> dict[str, object]:
     current = services(request)
@@ -419,22 +424,28 @@ async def create_pdf_to_word_job(
         raise HTTPException(status_code=422, detail=str(error)) from error
 
     await current.rate_limiter.check(
-        f"pdf:{ip}",
+        f"document:{ip}",
         limit=current.settings.pdf_jobs_per_hour,
         window_seconds=3600,
     )
 
     stored = None
     try:
+        input_format = detect_document_format(file.filename)
+        if input_format == output_format:
+            raise DocumentValidationError(
+                "Choose an output format different from the source document."
+            )
         with tempfile.TemporaryDirectory(prefix="aaron-toolkit-upload-") as temp:
-            source = Path(temp) / "source.pdf"
+            source = Path(temp) / f"source.{input_format}"
             await save_upload(
                 file,
                 source,
                 max_bytes=current.settings.max_pdf_bytes,
             )
-            validate_pdf(
+            validate_document(
                 source,
+                input_format=input_format,
                 max_bytes=current.settings.max_pdf_bytes,
                 max_pages=current.settings.max_pdf_pages,
             )
@@ -446,18 +457,20 @@ async def create_pdf_to_word_job(
         size_mb = current.settings.max_pdf_bytes // (1024 * 1024)
         raise HTTPException(
             status_code=413,
-            detail=f"PDF files must be {size_mb} MB or smaller.",
+            detail=f"Documents must be {size_mb} MB or smaller.",
         ) from error
-    except PDFValidationError as error:
+    except DocumentValidationError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     finally:
         await file.close()
 
     assert stored
-    job = ToolJob.create_pdf(
+    job = ToolJob.create_document(
         owner_hash=owner_hash(ip, current.settings.signing_secret),
         input_key=stored.key,
         source_filename=stored.filename,
+        input_format=input_format,
+        output_format=output_format,
         ttl_seconds=current.settings.job_ttl_seconds,
     )
     try:
@@ -468,26 +481,26 @@ async def create_pdf_to_word_job(
     await current.jobs.enqueue(job.id)
     return {
         **job.public_dict(),
-        "statusUrl": f"/api/pdf-to-word-jobs/{job.id}",
-        "eventsUrl": f"/api/pdf-to-word-jobs/{job.id}/events",
+        "statusUrl": f"/api/document-conversion-jobs/{job.id}",
+        "eventsUrl": f"/api/document-conversion-jobs/{job.id}/events",
     }
 
 
-@app.get("/api/pdf-to-word-jobs/{job_id}")
-async def get_pdf_to_word_job(job_id: str, request: Request) -> dict[str, object]:
-    job = await get_tool_job(request, job_id, "pdf-to-word")
+@app.get("/api/document-conversion-jobs/{job_id}")
+async def get_document_conversion_job(job_id: str, request: Request) -> dict[str, object]:
+    job = await get_tool_job(request, job_id, "document-conversion")
     return job.public_dict()
 
 
-@app.get("/api/pdf-to-word-jobs/{job_id}/events")
-async def pdf_to_word_job_events(job_id: str, request: Request) -> StreamingResponse:
-    return await tool_job_events(request, job_id, "pdf-to-word")
+@app.get("/api/document-conversion-jobs/{job_id}/events")
+async def document_conversion_job_events(job_id: str, request: Request) -> StreamingResponse:
+    return await tool_job_events(request, job_id, "document-conversion")
 
 
-@app.delete("/api/pdf-to-word-jobs/{job_id}")
-async def cancel_pdf_to_word_job(job_id: str, request: Request) -> dict[str, object]:
+@app.delete("/api/document-conversion-jobs/{job_id}")
+async def cancel_document_conversion_job(job_id: str, request: Request) -> dict[str, object]:
     current = services(request)
-    existing = await get_tool_job(request, job_id, "pdf-to-word")
+    existing = await get_tool_job(request, job_id, "document-conversion")
     job = await current.jobs.request_cancel(job_id)
     assert job
     if job.status == "cancelled" and existing.input_key:

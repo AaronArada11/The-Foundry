@@ -46,16 +46,19 @@ async def test_queue_and_cancelled_queued_job():
 async def test_owner_can_have_one_active_job_of_each_kind():
     store = MemoryJobStore()
     await store.create(make_job())
-    pdf = ToolJob.create_pdf(
+    conversion = ToolJob.create_document(
         owner_hash="owner",
         input_key="input-key",
         source_filename="document.pdf",
+        input_format="pdf",
+        output_format="docx",
         ttl_seconds=3600,
     )
 
-    created = await store.create(pdf)
+    created = await store.create(conversion)
 
-    assert created.kind == "pdf-to-word"
+    assert created.kind == "document-conversion"
+    assert created.public_dict()["outputFormat"] == "docx"
 
 
 @pytest.mark.asyncio
@@ -78,7 +81,7 @@ async def test_tiktok_job_has_its_own_active_owner_scope():
 def test_legacy_job_payload_is_read_as_youtube_job():
     job = make_job()
     payload = job.storage_dict()
-    for key in ("kind", "version", "input_key", "source_filename"):
+    for key in ("kind", "version", "input_key", "source_filename", "input_format"):
         payload.pop(key)
 
     restored = ToolJob.from_payload(payload)

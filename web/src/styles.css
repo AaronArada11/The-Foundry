@@ -2232,6 +2232,12 @@ select:focus-visible,
   outline-color: var(--accent);
 }
 
+.format-options input:disabled + span {
+  background: var(--control);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
 .permission-check input,
 .range-input {
   accent-color: var(--accent);
@@ -2357,6 +2363,15 @@ select:focus-visible,
   .directory-title .hero-copy > p {
     grid-row: auto;
     margin-top: 0;
+  }
+
+  .page-title {
+    grid-template-columns: 1fr;
+    gap: 22px;
+  }
+
+  .page-description {
+    max-width: 600px;
   }
 
   .tool-count {

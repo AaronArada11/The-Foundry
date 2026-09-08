@@ -10,7 +10,7 @@ Foundry ships as one OCI image used by two process types:
 
 - Redis 7+ for job state, ownership locks, queueing, and rate limits.
 - S3-compatible object storage with a private bucket.
-- Cloudflare Turnstile keys for anonymous YouTube, TikTok, and PDF-job
+- Cloudflare Turnstile keys for anonymous YouTube, TikTok, and document-job
   verification.
 
 ## Required production environment
@@ -51,7 +51,7 @@ one worker process.
 
 - Artifact URLs are pre-signed for 15 minutes by default.
 - Web and worker processes schedule deletion when that 15-minute window closes.
-- Uploaded PDF inputs use private `inputs/` objects and are deleted in the worker's
+- Uploaded document inputs use private `inputs/` objects and are deleted in the worker's
   cleanup path immediately after success, failure, timeout, or cancellation.
 - Job metadata and temporary inputs expire after two hours.
 - Temporary working directories are isolated per job and removed after each run.
@@ -69,11 +69,12 @@ two-hour input retention.
   timeout, and a 15-minute artifact lifetime. Long videos automatically use a
   lower-bitrate source when necessary to stay within the output limit.
 - Image uploads: 20 MiB, 40 megapixels, 10 conversions per IP per minute.
-- PDF uploads: 25 MiB, 100 pages, three jobs per IP per hour, one active PDF job
-  per IP, 180-second execution timeout, and a 1 GiB subprocess memory limit.
+- Document uploads: PDF, DOCX, or Markdown up to 25 MiB, three jobs per IP per
+  hour, one active document job per IP, a 180-second execution timeout, and a
+  1 GiB subprocess memory limit. PDFs are limited to 100 pages.
 - Image conversion is synchronous and does not retain the source or output.
 - PDF conversion accepts text-based, unencrypted documents. OCR is intentionally
-  not included.
+  not included. All six conversions among PDF, DOCX, and Markdown are supported.
 
 ## Local parity
 

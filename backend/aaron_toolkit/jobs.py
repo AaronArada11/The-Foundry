@@ -10,7 +10,8 @@ from typing import Literal, Protocol
 from redis.asyncio import Redis
 
 MediaJobKind = Literal["youtube-download", "tiktok-download"]
-JobKind = Literal["youtube-download", "tiktok-download", "pdf-to-word"]
+DocumentFormat = Literal["pdf", "docx", "md"]
+JobKind = Literal["youtube-download", "tiktok-download", "document-conversion"]
 MEDIA_JOB_KINDS = frozenset({"youtube-download", "tiktok-download"})
 JobStatus = Literal[
     "queued",
@@ -22,7 +23,7 @@ JobStatus = Literal[
     "cancelled",
 ]
 TERMINAL_STATUSES = {"ready", "failed", "expired", "cancelled"}
-CURRENT_JOB_VERSION = 2
+CURRENT_JOB_VERSION = 3
 
 
 class ActiveJobError(RuntimeError):
@@ -48,7 +49,8 @@ class ToolJob:
     expires_at: float
     version: int = CURRENT_JOB_VERSION
     url: str | None = None
-    output_format: Literal["mp4", "mp3", "mov"] | None = None
+    output_format: Literal["mp4", "mp3", "mov", "pdf", "docx", "md"] | None = None
+    input_format: DocumentFormat | None = None
     input_key: str | None = None
     source_filename: str | None = None
 
@@ -105,20 +107,24 @@ class ToolJob:
         )
 
     @classmethod
-    def create_pdf(
+    def create_document(
         cls,
         *,
         owner_hash: str,
         input_key: str,
         source_filename: str,
+        input_format: DocumentFormat,
+        output_format: DocumentFormat,
         ttl_seconds: int,
     ) -> ToolJob:
         return cls._new(
             owner_hash=owner_hash,
-            kind="pdf-to-word",
+            kind="document-conversion",
             ttl_seconds=ttl_seconds,
             input_key=input_key,
             source_filename=source_filename,
+            input_format=input_format,
+            output_format=output_format,
         )
 
     @classmethod
@@ -129,7 +135,8 @@ class ToolJob:
         kind: JobKind,
         ttl_seconds: int,
         url: str | None = None,
-        output_format: Literal["mp4", "mp3", "mov"] | None = None,
+        output_format: Literal["mp4", "mp3", "mov", "pdf", "docx", "md"] | None = None,
+        input_format: DocumentFormat | None = None,
         input_key: str | None = None,
         source_filename: str | None = None,
     ) -> ToolJob:
@@ -152,6 +159,7 @@ class ToolJob:
             expires_at=now + ttl_seconds,
             url=url,
             output_format=output_format,
+            input_format=input_format,
             input_key=input_key,
             source_filename=source_filename,
         )
@@ -165,7 +173,18 @@ class ToolJob:
                 "kind": "youtube-download",
                 "input_key": None,
                 "source_filename": None,
+                "input_format": None,
             }
+        elif payload.get("kind") == "pdf-to-word":
+            payload = {
+                **payload,
+                "version": CURRENT_JOB_VERSION,
+                "kind": "document-conversion",
+                "input_format": "pdf",
+                "output_format": "docx",
+            }
+        elif "input_format" not in payload:
+            payload = {**payload, "input_format": None}
         return cls(**payload)  # type: ignore[arg-type]
 
     @property
@@ -174,7 +193,7 @@ class ToolJob:
 
     @property
     def active_job_message(self) -> str:
-        label = "media" if self.kind in MEDIA_JOB_KINDS else "PDF conversion"
+        label = "media" if self.kind in MEDIA_JOB_KINDS else "document conversion"
         return f"one active {label} job is allowed per visitor"
 
     def public_dict(self) -> dict[str, object]:
@@ -201,7 +220,14 @@ class ToolJob:
             if self.kind == "tiktok-download":
                 payload["kind"] = self.kind
         else:
-            payload.update({"kind": self.kind, "sourceFilename": self.source_filename})
+            payload.update(
+                {
+                    "kind": self.kind,
+                    "sourceFilename": self.source_filename,
+                    "inputFormat": self.input_format,
+                    "outputFormat": self.output_format,
+                }
+            )
         return payload
 
     def storage_dict(self) -> dict[str, object]:

@@ -10,7 +10,7 @@ test("catalog loads, filters, and routes to a tool", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Open TikTok Downloader" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Link QR Generator" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Open Image Format Converter" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Open PDF to Word" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open Document Converter" })).toBeVisible();
 
   const columnCount = await page
     .locator(".tool-grid")
@@ -47,23 +47,25 @@ test("image workflow converts and exposes a download", async ({ page }) => {
   );
 });
 
-test("PDF workflow uploads, reports progress, and exposes DOCX", async ({ page }) => {
+test("document workflow converts PDF to Markdown and exposes the result", async ({ page }) => {
   const job = {
-    id: "visual-pdf-job",
-    kind: "pdf-to-word",
+    id: "visual-document-job",
+    kind: "document-conversion",
     status: "queued",
     progress: 0,
     sourceFilename: "report.pdf",
+    inputFormat: "pdf",
+    outputFormat: "md",
     filename: null,
     downloadUrl: null,
     artifactExpiresAt: null,
     error: null,
-    eventsUrl: "/api/pdf-to-word-jobs/visual-pdf-job/events",
+    eventsUrl: "/api/document-conversion-jobs/visual-document-job/events",
   };
-  await page.route("**/api/pdf-to-word-jobs", async (route) => {
+  await page.route("**/api/document-conversion-jobs", async (route) => {
     await route.fulfill({ status: 202, contentType: "application/json", body: JSON.stringify(job) });
   });
-  await page.route("**/api/pdf-to-word-jobs/visual-pdf-job/events", async (route) => {
+  await page.route("**/api/document-conversion-jobs/visual-document-job/events", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "text/event-stream",
@@ -71,23 +73,24 @@ test("PDF workflow uploads, reports progress, and exposes DOCX", async ({ page }
         ...job,
         status: "ready",
         progress: 100,
-        filename: "report.docx",
-        downloadUrl: "/mock-report.docx",
+        filename: "report.md",
+        downloadUrl: "/mock-report.md",
       })}\n\n`,
     });
   });
-  await page.goto("/tools/pdf-to-word");
-  await page.getByLabel("Source PDF").setInputFiles({
+  await page.goto("/tools/document-converter");
+  await page.getByLabel("Source document").setInputFiles({
     name: "report.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-mocked"),
   });
-  await page.getByRole("button", { name: "Convert to Word" }).click();
+  await page.getByText("Markdown", { exact: true }).click();
+  await page.getByRole("button", { name: "Convert PDF to Markdown" }).click();
 
-  await expect(page.getByText("Word document ready")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Download DOCX" })).toHaveAttribute(
+  await expect(page.getByText("Markdown document ready")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download Markdown" })).toHaveAttribute(
     "href",
-    "/mock-report.docx",
+    "/mock-report.md",
   );
 });
 
@@ -146,9 +149,9 @@ test("captures responsive visual references", async ({ page }, testInfo) => {
   await expect(page.getByRole("heading", { name: "Image Format Converter" })).toBeVisible();
   await page.screenshot({ path: `${prefix}-image-waiting.png`, fullPage: true });
 
-  await page.goto("/tools/pdf-to-word");
-  await expect(page.getByRole("heading", { name: "PDF to Word" })).toBeVisible();
-  await page.screenshot({ path: `${prefix}-pdf-waiting.png`, fullPage: true });
+  await page.goto("/tools/document-converter");
+  await expect(page.getByRole("heading", { name: "Document Converter" })).toBeVisible();
+  await page.screenshot({ path: `${prefix}-document-waiting.png`, fullPage: true });
 });
 
 test("supports keyboard focus and reduced motion", async ({ page }) => {

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { vi } from "vitest";
 
 import type { ToolManifest } from "../../types";
-import PDFToWordTool from "./plugin";
+import DocumentConverterTool from "./plugin";
 
 const uploadFormWithProgress = vi.fn();
 
@@ -23,21 +23,21 @@ class EventSourceStub {
 }
 
 const manifest: ToolManifest = {
-  id: "pdf-to-word",
-  slug: "pdf-to-word",
-  name: "PDF to Word",
-  description: "Convert a PDF.",
-  sortOrder: 4,
+  id: "document-converter",
+  slug: "document-converter",
+  name: "Document Converter",
+  description: "Convert documents.",
+  sortOrder: 5,
   category: "Convert",
-  tags: ["PDF", "DOCX"],
+  tags: ["PDF", "DOCX", "Markdown"],
   icon: "file-doc",
   accent: "forest",
   executionType: "server-job",
   availability: "available",
 };
 
-describe("PDF to Word tool", () => {
-  it("uploads a PDF and starts the background job", async () => {
+describe("Document Converter tool", () => {
+  it("offers every output format and starts a PDF to Markdown job", async () => {
     vi.stubGlobal("EventSource", EventSourceStub);
     uploadFormWithProgress.mockImplementation(
       async (
@@ -47,32 +47,39 @@ describe("PDF to Word tool", () => {
       ) => {
         onProgress(100);
         return {
-          id: "pdf-job",
-          kind: "pdf-to-word",
+          id: "document-job",
+          kind: "document-conversion",
           status: "queued",
           progress: 0,
           sourceFilename: "report.pdf",
+          inputFormat: "pdf",
+          outputFormat: "md",
           filename: null,
           downloadUrl: null,
           artifactExpiresAt: null,
           error: null,
-          eventsUrl: "/api/pdf-to-word-jobs/pdf-job/events",
+          eventsUrl: "/api/document-conversion-jobs/document-job/events",
         };
       },
     );
-    render(<PDFToWordTool manifest={manifest} />);
+    render(<DocumentConverterTool manifest={manifest} />);
 
     await userEvent.upload(
-      screen.getByLabelText("Source PDF"),
+      screen.getByLabelText("Source document"),
       new File(["%PDF-test"], "report.pdf", { type: "application/pdf" }),
     );
+    expect(screen.getByRole("radio", { name: "PDF" })).toBeDisabled();
+    await userEvent.click(screen.getByRole("radio", { name: "Markdown" }));
     await userEvent.click(
-      await screen.findByRole("button", { name: /Convert to Word/i }),
+      await screen.findByRole("button", { name: /Convert PDF to Markdown/i }),
     );
 
     expect(uploadFormWithProgress).toHaveBeenCalledOnce();
+    const [path, body] = uploadFormWithProgress.mock.calls[0] as [string, FormData];
+    expect(path).toBe("/api/document-conversion-jobs");
+    expect(body.get("outputFormat")).toBe("md");
     expect(await screen.findByText("Job / queued")).toBeInTheDocument();
-    expect(screen.getByRole("progressbar", { name: "PDF conversion progress" }))
+    expect(screen.getByRole("progressbar", { name: "Document conversion progress" }))
       .toHaveAttribute("aria-valuenow", "0");
   });
 });

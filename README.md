@@ -13,7 +13,8 @@ The initial tools are:
   or MOV.
 - Image Format Converter — convert JPG, PNG, WebP, GIF, BMP, TIFF, HEIC, or
   AVIF images to JPG, PNG, or WebP.
-- PDF to Word — turn text-based PDFs into editable DOCX files.
+- Document Converter — convert between PDF, Word (DOCX), and Markdown in any
+  direction.
 
 ## Local development
 
@@ -57,7 +58,7 @@ The optional real yt-dlp media smoke test is disabled by default:
 RUN_REAL_MEDIA_TESTS=1 pytest -m real_media
 ```
 
-Run the local PDF conversion smoke test with:
+Run the local document conversion smoke test with:
 
 ```bash
 RUN_REAL_PDF_TEST=1 pytest -m real_pdf

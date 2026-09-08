@@ -15,7 +15,7 @@ def test_health_and_tool_catalog():
         "tiktok-downloader",
         "link-qr-generator",
         "image-format-converter",
-        "pdf-to-word",
+        "document-converter",
     ]
 
 
@@ -86,7 +86,7 @@ def test_image_endpoint_returns_downloadable_conversion():
     assert response.content.startswith(b"\xff\xd8\xff")
 
 
-def test_pdf_endpoint_queues_valid_document():
+def test_document_endpoint_queues_valid_pdf_to_markdown_conversion():
     source = io.BytesIO()
     document = __import__("pymupdf").open()
     page = document.new_page()
@@ -96,13 +96,15 @@ def test_pdf_endpoint_queues_valid_document():
 
     with TestClient(app) as client:
         response = client.post(
-            "/api/pdf-to-word-jobs",
+            "/api/document-conversion-jobs",
             files={"file": ("document.pdf", source.getvalue(), "application/pdf")},
-            data={"turnstileToken": "dev-bypass"},
+            data={"turnstileToken": "dev-bypass", "outputFormat": "md"},
         )
 
     assert response.status_code == 202
     payload = response.json()
-    assert payload["kind"] == "pdf-to-word"
+    assert payload["kind"] == "document-conversion"
+    assert payload["inputFormat"] == "pdf"
+    assert payload["outputFormat"] == "md"
     assert payload["status"] == "queued"
     assert payload["eventsUrl"].endswith("/events")

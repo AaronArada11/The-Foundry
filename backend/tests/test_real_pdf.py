@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pymupdf
 import pytest
-from aaron_toolkit.pdf_convert_cli import convert
+from aaron_toolkit.document_convert_cli import convert
 from docx import Document
 
 
@@ -21,7 +21,7 @@ def test_real_pdf_to_docx_conversion(tmp_path: Path):
     document.save(source)
     document.close()
 
-    convert(source, output)
+    convert(source, output, "pdf", "docx")
 
     converted = Document(output)
     text = "\n".join(paragraph.text for paragraph in converted.paragraphs)

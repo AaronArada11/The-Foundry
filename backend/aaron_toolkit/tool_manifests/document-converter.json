@@ -1,0 +1,13 @@
+{
+  "id": "document-converter",
+  "slug": "document-converter",
+  "name": "Document Converter",
+  "description": "Convert documents between PDF, Word, and Markdown formats.",
+  "sortOrder": 5,
+  "category": "Convert",
+  "tags": ["PDF", "DOCX", "Markdown"],
+  "icon": "file-doc",
+  "accent": "forest",
+  "executionType": "server-job",
+  "availability": "available"
+}

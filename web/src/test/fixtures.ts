@@ -36,8 +36,8 @@ export function toolFixture(index: number): ToolManifest {
             }
           : index === 4
             ? {
-                id: "pdf-to-word",
-                name: "PDF to Word",
+                id: "document-converter",
+                name: "Document Converter",
                 category: "Convert",
                 icon: "file-doc",
                 accent: "forest" as const,

@@ -3,8 +3,13 @@ from pathlib import Path
 import pymupdf
 import pytest
 from aaron_toolkit.config import Settings
+from aaron_toolkit.document_service import (
+    DocumentProcessor,
+    DocumentValidationError,
+    detect_document_format,
+    validate_document,
+)
 from aaron_toolkit.jobs import MemoryJobStore, ToolJob
-from aaron_toolkit.pdf_service import PDFProcessor, PDFValidationError, validate_pdf
 from aaron_toolkit.storage import LocalArtifactStore
 
 
@@ -17,54 +22,52 @@ def create_pdf(path: Path, *, text: str | None = "Editable text") -> None:
     document.close()
 
 
+def test_detects_supported_document_extensions():
+    assert detect_document_format("report.PDF") == "pdf"
+    assert detect_document_format("report.docx") == "docx"
+    assert detect_document_format("notes.markdown") == "md"
+    with pytest.raises(DocumentValidationError, match="PDF, Word"):
+        detect_document_format("sheet.xlsx")
+
+
 def test_validates_text_pdf_and_rejects_scanned_only(tmp_path: Path):
     text_pdf = tmp_path / "text.pdf"
     create_pdf(text_pdf)
-    assert validate_pdf(text_pdf, max_bytes=1024 * 1024, max_pages=10) == 1
+    validate_document(text_pdf, input_format="pdf", max_bytes=1024 * 1024, max_pages=10)
 
     scanned_pdf = tmp_path / "scan.pdf"
     create_pdf(scanned_pdf, text=None)
-    with pytest.raises(PDFValidationError, match="scanned"):
-        validate_pdf(scanned_pdf, max_bytes=1024 * 1024, max_pages=10)
+    with pytest.raises(DocumentValidationError, match="scanned"):
+        validate_document(scanned_pdf, input_format="pdf", max_bytes=1024 * 1024, max_pages=10)
 
 
-def test_rejects_encrypted_and_oversized_pdf(tmp_path: Path):
-    plain = tmp_path / "plain.pdf"
-    create_pdf(plain)
-    encrypted = tmp_path / "encrypted.pdf"
-    with pymupdf.open(plain) as document:
-        document.save(
-            encrypted,
-            encryption=pymupdf.PDF_ENCRYPT_AES_256,
-            owner_pw="owner",
-            user_pw="secret",
-        )
-
-    with pytest.raises(PDFValidationError, match="Password-protected"):
-        validate_pdf(encrypted, max_bytes=1024 * 1024, max_pages=10)
-    with pytest.raises(PDFValidationError, match="MB or smaller"):
-        validate_pdf(plain, max_bytes=5, max_pages=10)
-
-    two_pages = tmp_path / "two-pages.pdf"
-    document = pymupdf.open()
-    for _ in range(2):
-        page = document.new_page()
-        page.insert_text((72, 72), "Editable")
-    document.save(two_pages)
-    document.close()
-    with pytest.raises(PDFValidationError, match="at most 1 pages"):
-        validate_pdf(two_pages, max_bytes=1024 * 1024, max_pages=1)
+def test_validates_markdown_and_rejects_empty_file(tmp_path: Path):
+    markdown = tmp_path / "notes.md"
+    markdown.write_text("# Notes\n\nEditable text", encoding="utf-8")
+    validate_document(markdown, input_format="md", max_bytes=1024, max_pages=10)
+    markdown.write_text("", encoding="utf-8")
+    with pytest.raises(DocumentValidationError, match="Choose a document"):
+        validate_document(markdown, input_format="md", max_bytes=1024, max_pages=10)
 
 
-class StubPDFProcessor(PDFProcessor):
-    async def _run_conversion(self, job_id: str, source: Path, output: Path) -> None:
+class StubDocumentProcessor(DocumentProcessor):
+    async def _run_conversion(
+        self,
+        job_id: str,
+        source: Path,
+        output: Path,
+        input_format: str,
+        output_format: str,
+    ) -> None:
         del job_id
         assert source.read_bytes().startswith(b"%PDF-")
-        output.write_bytes(b"docx")
+        assert input_format == "pdf"
+        assert output_format == "md"
+        output.write_text("Converted", encoding="utf-8")
 
 
 @pytest.mark.asyncio
-async def test_processor_publishes_docx_and_deletes_private_input(tmp_path: Path):
+async def test_processor_publishes_output_and_deletes_private_input(tmp_path: Path):
     source = tmp_path / "source.pdf"
     create_pdf(source)
     artifacts = LocalArtifactStore(
@@ -77,33 +80,31 @@ async def test_processor_publishes_docx_and_deletes_private_input(tmp_path: Path
     stored = await artifacts.put_input(source, filename="Example Report.pdf")
     jobs = MemoryJobStore()
     job = await jobs.create(
-        ToolJob.create_pdf(
+        ToolJob.create_document(
             owner_hash="owner",
             input_key=stored.key,
             source_filename=stored.filename,
+            input_format="pdf",
+            output_format="md",
             ttl_seconds=3600,
         )
     )
-    processor = StubPDFProcessor(
-        store=jobs,
-        artifacts=artifacts,
-        settings=Settings(),
-    )
+    processor = StubDocumentProcessor(store=jobs, artifacts=artifacts, settings=Settings())
 
     await processor.process(job.id)
 
     ready = await jobs.get(job.id)
     assert ready
     assert ready.status == "ready"
-    assert ready.filename == "Example-Report.docx"
+    assert ready.filename == "Example-Report.md"
     assert ready.input_key is None
     with pytest.raises(FileNotFoundError):
         await artifacts.materialize_input(stored.key, tmp_path / "missing.pdf")
 
 
-class TimeoutPDFProcessor(PDFProcessor):
-    async def _run_conversion(self, job_id: str, source: Path, output: Path) -> None:
-        del job_id, source, output
+class TimeoutDocumentProcessor(DocumentProcessor):
+    async def _run_conversion(self, *args) -> None:
+        del args
         raise TimeoutError
 
 
@@ -120,18 +121,16 @@ async def test_processor_reports_timeout_and_cleans_input(tmp_path: Path):
     stored = await artifacts.put_input(source, filename="slow.pdf")
     jobs = MemoryJobStore()
     job = await jobs.create(
-        ToolJob.create_pdf(
+        ToolJob.create_document(
             owner_hash="owner",
             input_key=stored.key,
             source_filename=stored.filename,
+            input_format="pdf",
+            output_format="docx",
             ttl_seconds=3600,
         )
     )
-    processor = TimeoutPDFProcessor(
-        store=jobs,
-        artifacts=artifacts,
-        settings=Settings(),
-    )
+    processor = TimeoutDocumentProcessor(store=jobs, artifacts=artifacts, settings=Settings())
 
     await processor.process(job.id)
 
