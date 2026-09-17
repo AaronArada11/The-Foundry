@@ -18,6 +18,17 @@ from pdf2docx import Converter
 
 DOCUMENT_FORMATS = ("pdf", "docx", "md")
 
+# pdf2docx models every detected column transition as a Word section. Very short
+# column bands (for example, two summary cards above a full-width table) then
+# produce continuous/next-column section breaks that Word may reflow onto an
+# extra page. Treat bands shorter than one inch as table-backed layout instead;
+# longer newspaper-style columns still use real Word columns.
+PDF_TO_DOCX_SETTINGS = {
+    "ignore_page_error": False,
+    "min_section_height": 72.0,
+    "raw_exceptions": True,
+}
+
 
 def _apply_resource_limits() -> None:
     if sys.platform != "linux":
@@ -284,7 +295,7 @@ def convert(source: Path, output: Path, input_format: str, output_format: str) -
     if input_format == "pdf" and output_format == "docx":
         converter = Converter(str(source))
         try:
-            converter.convert(str(output))
+            converter.convert(str(output), **PDF_TO_DOCX_SETTINGS)
         finally:
             converter.close()
         return
